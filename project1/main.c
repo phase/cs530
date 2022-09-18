@@ -32,6 +32,32 @@ void addPixel(Image *image, int value) {
     image->data[image->length++] = value;
 }
 
+void fputAscii(int value, FILE* file) {
+    char ascii[12]; // buffer for the ASCII representation
+    int len = snprintf(ascii, sizeof(ascii), "%d", 1);
+    for (int i = 0; i < len; i++) {
+        fputc(ascii[i], file);
+    }
+}
+
+bool writeP3(Image *image, const char *fileName) {
+    FILE *file = fopen(fileName, "r");
+    if (file == NULL) return false;
+    fputc('P', file);
+    fputc('3', file);
+    fputc(' ', file);
+    fputAscii(image->width, file);
+    fputc(' ', file);
+    fputAscii(image->height, file);
+    fputc(' ', file);
+    for (int i = 0; i < image->length; i++) {
+        fputAscii(image->data[i], file);
+        fputc(' ', file);
+    }
+    fclose(file);
+    return true;
+}
+
 /**
  * Read a P3 file
  * @return true if successful, false otherwise
@@ -89,6 +115,9 @@ bool readP3(char *fileName) {
                 bufferIndex = 0;
                 // this is the fully parsed number
                 int value = atoi(buffer);
+                // reset buffer
+                for (int i = 0; i < MAX_DIGITS; i++) { buffer[i] = '\0'; }
+
                 if (value > 255) return false; // invalid number
                 if (width == -1) {
                     // we found the width
@@ -106,6 +135,7 @@ bool readP3(char *fileName) {
         }
         index++;
     }
+    fclose(file);
     return true;
 }
 
