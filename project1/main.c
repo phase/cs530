@@ -32,27 +32,35 @@ void addPixel(Image *image, int value) {
     image->data[image->length++] = value;
 }
 
-void fputAscii(int value, FILE* file) {
+int fputAscii(int value, FILE *file) {
     char ascii[12]; // buffer for the ASCII representation
-    int len = snprintf(ascii, sizeof(ascii), "%d", 1);
+    int len = snprintf(ascii, sizeof(ascii), "%d", value);
     for (int i = 0; i < len; i++) {
         fputc(ascii[i], file);
     }
+    return len;
 }
 
 bool writeP3(Image *image, const char *fileName) {
-    FILE *file = fopen(fileName, "r");
+    FILE *file = fopen(fileName, "w");
     if (file == NULL) return false;
     fputc('P', file);
     fputc('3', file);
-    fputc(' ', file);
+    fputc('\n', file);
     fputAscii(image->width, file);
     fputc(' ', file);
     fputAscii(image->height, file);
-    fputc(' ', file);
+    fputc('\n', file);
+    int lineLength = 0;
     for (int i = 0; i < image->length; i++) {
-        fputAscii(image->data[i], file);
-        fputc(' ', file);
+        int len = fputAscii(image->data[i], file);
+        lineLength += len + 1;
+        if (lineLength >= 65 || i == image->length - 1) {
+            lineLength = 0;
+            fputc('\n', file);
+        } else {
+            fputc(' ', file);
+        }
     }
     fclose(file);
     return true;
@@ -62,9 +70,9 @@ bool writeP3(Image *image, const char *fileName) {
  * Read a P3 file
  * @return true if successful, false otherwise
  */
-bool readP3(char *fileName) {
+Image* readP3(char *fileName) {
     FILE *file = fopen(fileName, "r");
-    if (file == NULL) return false;
+    if (file == NULL) return NULL;
 
     char c; // current character
     int index = 0; // index of the character in the file
@@ -73,7 +81,7 @@ bool readP3(char *fileName) {
 
     // buffer for ascii numbers - holds at most 7 digits
     int MAX_DIGITS = 7;
-    char buffer[] = {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'};
+    char buffer[7];
     int bufferIndex = 0;
     // width and height of the image
     // width appears first in the file, then height, then the pixels
@@ -84,8 +92,12 @@ bool readP3(char *fileName) {
     // this will parse different sections by setting the flags above
     while ((c = fgetc(file)) != EOF) {
         // check magic number
-        if (index == 0 && c != 'P') return false;
-        if (index == 1 && c!= '3') return false;
+        if (index == 0 && c != 'P') return NULL;
+        if (index == 1 && c != '3') return NULL;
+        if (index == 0 || index == 1) {
+            index++;
+            continue;
+        }
 
         // handle comments
         if (c == '#') {
@@ -104,7 +116,7 @@ bool readP3(char *fileName) {
             parsingNumFlag = 1;
             // bail out if the index is greater than the buffer size
             // this will only happen if we hit a number that is too large
-            if (bufferIndex >= MAX_DIGITS) return false;
+            if (bufferIndex >= MAX_DIGITS) return NULL;
 
             buffer[bufferIndex++] = c;
         } else if (isspace(c)) { // c is a space, tab, newline, etc
@@ -115,6 +127,7 @@ bool readP3(char *fileName) {
                 bufferIndex = 0;
                 // this is the fully parsed number
                 int value = atoi(buffer);
+
                 // reset buffer
                 for (int i = 0; i < MAX_DIGITS; i++) { buffer[i] = '\0'; }
 
@@ -136,10 +149,25 @@ bool readP3(char *fileName) {
         index++;
     }
     fclose(file);
-    return true;
+    return image;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     // call readPX based on args
     printf("P3 / P6 / P7 image reader / writer\n");
+    if (argc != 4) {
+        printf("Invalid arguments! Expected ./ppmrw <format> <input> <output>\n");
+    }
+
+    char *format = argv[1];
+    char *inputFile = argv[2];
+    char *outputFile = argv[3];
+    if (format[0] == '3') {
+        printf("Converting to P3\n");
+        Image* image = readP3(inputFile);
+        writeP3(image, outputFile);
+    } else {
+        printf("Unknown format %s\n", format);
+    }
+    return 0;
 }
