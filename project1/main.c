@@ -27,9 +27,23 @@ Image *newImage(int width, int height) {
     return image;
 }
 
+void freeImage(Image *image) {
+    free(image->data);
+    free(image);
+}
+
 // add a pixel value to the end of the image's data buffer
 void addPixel(Image *image, int value) {
     image->data[image->length++] = value;
+}
+
+int getImageFormat(char *fileName) {
+    FILE *file = fopen(fileName, "r");
+    if (file == NULL) return '\0';
+    fgetc(file); // ignore the P
+    int format = fgetc(file);
+    fclose(file);
+    return format;
 }
 
 int fputAscii(int value, FILE *file) {
@@ -39,6 +53,24 @@ int fputAscii(int value, FILE *file) {
         fputc(ascii[i], file);
     }
     return len;
+}
+
+bool writeP7(Image *image, const char *fileName) {
+    FILE *file = fopen(fileName, "w");
+    if (file == NULL) return false;
+    fputc('P', file);
+    fputc('7', file);
+    fputc('\n', file);
+    fputs("WIDTH ", file);
+    fputAscii(image->width, file);
+    fputs("\nHEIGHT ", file);
+    fputAscii(image->height, file);
+    fputs("\nDEPTH 3\n", file);
+    for (int i = 0; i < image->length; i++) {
+        fputc(image->data[i], file);
+    }
+    fclose(file);
+    return true;
 }
 
 bool writeP3(Image *image, const char *fileName) {
@@ -70,7 +102,7 @@ bool writeP3(Image *image, const char *fileName) {
  * Read a P3 file
  * @return true if successful, false otherwise
  */
-Image* readP3(char *fileName) {
+Image *readP3(char *fileName) {
     FILE *file = fopen(fileName, "r");
     if (file == NULL) return NULL;
 
@@ -162,12 +194,29 @@ int main(int argc, char *argv[]) {
     char *format = argv[1];
     char *inputFile = argv[2];
     char *outputFile = argv[3];
-    if (format[0] == '3') {
-        printf("Converting to P3\n");
-        Image* image = readP3(inputFile);
-        writeP3(image, outputFile);
-    } else {
-        printf("Unknown format %s\n", format);
+
+    int inputFileFormat = getImageFormat(inputFile);
+    Image *image = NULL;
+    if (inputFileFormat == '3') {
+        image = readP3(inputFile);
+    } else if (inputFileFormat == '6') {
+        // TODO read p6
+    } else if (inputFileFormat == '7') {
+        // TODO read p7
+    }
+
+    if (image != NULL) {
+        if (format[0] == '3') {
+            printf("Converting to P3\n");
+            writeP3(image, outputFile);
+        } else if (format[0] == '7') {
+            printf("Converting to P7\n");
+            writeP7(image, outputFile);
+        } else {
+            printf("Unknown format %s\n", format);
+        }
+
+        freeImage(image);
     }
     return 0;
 }
