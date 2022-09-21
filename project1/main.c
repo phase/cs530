@@ -190,7 +190,7 @@ Image* readP6(char* fname){
     Image * image = NULL;
     uint8_t * bytes_data;
     int length;
-    int count;
+    int count, i;
     int width = -1;
     int height = -1;
     int max_val = -1;
@@ -207,6 +207,7 @@ Image* readP6(char* fname){
  // Proceed with the rest of the program if it is correct.
     ch1 = fgetc(fh);
     while((width == -1 || height == -1 || max_val == -1) && ch1 != EOF){ // While we do not get the width and height of the file, we loop through this.
+        ch1 = fgetc(fh);
         if(ch1 == '#'){ // Checking for comments.
             while(ch1 != '\n'){ // Getting to the end of the comment.
                 ch1 = fgetc(fh);
@@ -232,7 +233,6 @@ Image* readP6(char* fname){
                 }
             }
         }
-        ch1 = fgetc(fh);
     }
     image = newImage(width, height); // creating a new image struct to store all the image data.
     bytes_data = malloc(width * height * 3); // allocating space for byte array to read all the raw data.
@@ -241,10 +241,24 @@ Image* readP6(char* fname){
     image->height = height; // storing height of the image in image structure.
     image->length = length; // storing the length of the data in image structure.
     for(count = 0; count < length; count++){
-        image->data[count] = (int)bytes_data[count]; // converting the byte data into to int and storing into the image structure.
+        i = (int)bytes_data[count];
+        printf("\n%d", i);
     }
+    printf("\n");
     fclose(fh); // closing the file.
     return image; // returnign the image structure.
+}
+
+bool writeP6(Image * image, char *fname){
+    FILE * fh;
+    uint8_t * bytes_data = malloc(image->width * image->height * 3);
+
+    for(int i = 0; i < image->length; i++){
+        printf("\n%d", image->data[i]);
+        //printf("\n%d", bytes_data[i]);
+    }
+    
+
 }
 
 int main(int argc, char *argv[]) {
@@ -261,9 +275,11 @@ int main(int argc, char *argv[]) {
     int inputFileFormat = getImageFormat(inputFile);
     Image *image = NULL;
     if (inputFileFormat == '3') {
+        printf("Reached Here1!");
         image = readP3(inputFile);
+        printf("Reached Here2!");
     } else if (inputFileFormat == '6') {
-        // TODO read p6
+        image = readP6(inputFile);
     } else if (inputFileFormat == '7') {
         // TODO read p7
     }
@@ -275,7 +291,11 @@ int main(int argc, char *argv[]) {
         } else if (format[0] == '7') {
             printf("Converting to P7\n");
             writeP7(image, outputFile);
-        } else {
+        } else if (format[0] == '6'){
+            printf("Converting to P3\n");
+            writeP6(image, outputFile);
+        } 
+        else {
             printf("Unknown format %s\n", format);
         }
 
