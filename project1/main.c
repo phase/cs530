@@ -13,7 +13,7 @@
 // structure holding the image info
 typedef struct {
     int width, height;
-    uint8_t *data;
+    uint16_t *data;
     int length;
 } Image;
 
@@ -22,7 +22,7 @@ Image *newImage(int width, int height) {
     Image *image = malloc(sizeof(Image));
     image->width = width;
     image->height = height;
-    image->data = malloc(sizeof(uint8_t) * image->width * image->height * 3);
+    image->data = malloc(sizeof(uint16_t) * image->width * image->height * 3);
     image->length = 0;
     return image;
 }
@@ -234,10 +234,13 @@ Image* readP6(char* fname){
     }
     image = newImage(width, height); // creating a new image struct to store all the image data.
     bytes_data = malloc(sizeof(uint8_t) * width * height * 3); // allocating space for byte array to read all the raw data.
-    image->length = fread(image->data, sizeof(uint8_t), width * height * 3, fh); // Reading all the raw data.
-    /*for(int count = 0; count < image->length; count++){
+    length = fread(bytes_data, sizeof(uint8_t), width * height * 3, fh); // Reading all the raw data.
+    for (count = 0; count < length; count++) {
+        addPixel(image, bytes_data[count]);
+    }
+    for(int count = 0; count < image->length; count++){
         printf("\n%d", (uint8_t) image->data[count]);
-    }*/
+    }
     printf("\n");
     fclose(fh); // closing the file.
     return image; // returnign the image structure.
