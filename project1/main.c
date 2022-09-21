@@ -242,7 +242,6 @@ Image* readP6(char* fname){
     image->length = length; // storing the length of the data in image structure.
     for(count = 0; count < length; count++){
         image->data[count] = (int)bytes_data[count]; // converting the byte data into to int and storing into the image structure.
-        printf("\n%d", image->data[count]);
     }
     fclose(fh); // closing the file.
     return image; // returnign the image structure.
