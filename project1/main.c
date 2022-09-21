@@ -22,7 +22,7 @@ Image *newImage(int width, int height) {
     Image *image = malloc(sizeof(Image));
     image->width = width;
     image->height = height;
-    image->data = malloc(image->width * image->height);
+    image->data = malloc(image->width * image->height * 3);
     image->length = 0;
     return image;
 }
@@ -112,7 +112,7 @@ Image* readP3(char *fileName) {
             continue;
         }
 
-        if (isnumber(c)) { // c is a number
+        if (isdigit(c)) { // c is a number
             parsingNumFlag = 1;
             // bail out if the index is greater than the buffer size
             // this will only happen if we hit a number that is too large
@@ -152,6 +152,70 @@ Image* readP3(char *fileName) {
     return image;
 }
 
+// Read a P6 file
+Image* readP6(char* fname){
+    FILE * fh = fopen(fname, "rb"); // Opening the P6 file in read mode.
+    Image * image = NULL;
+    uint8_t * bytes_data;
+    int length;
+    int count;
+    int width = -1;
+    int height = -1;
+    int max_val = -1;
+    char ch1, ch2;
+    char str[5];
+    if (fh == NULL) // Checking if the file exists.
+        return NULL;
+    ch1 = fgetc(fh);
+    ch2 = fgetc(fh);
+    if(ch1 != 'P' && ch2 != '6'){ // Checking if the format is correct.
+        fclose(fh); // If it is not we close the file;
+        return NULL; // and return NULL;
+    } 
+ // Proceed with the rest of the program if it is correct.
+    ch1 = fgetc(fh);
+    while((width == -1 || height == -1 || max_val == -1) && ch1 != EOF){ // While we do not get the width and height of the file, we loop through this.
+        if(ch1 == '#'){ // Checking for comments.
+            while(ch1 != '\n'){ // Getting to the end of the comment.
+                ch1 = fgetc(fh);
+            }
+        }
+        else{ // If it is not a comment.
+            if(isdigit(ch1)){ // Checking if it is a digit
+                count = 0;
+                while(isdigit(ch1)){ // reading the entire number.
+                    str[count] = ch1;
+                    count++;
+                    ch1 = fgetc(fh);
+                }
+                str[count] = '\0'; // adding the escape character at the end.
+                if(width == -1){ // If width not read, read width.
+                    width = atoi(str);
+                }
+                else if(width != -1 && height == -1){ // else read height.
+                    height = atoi(str);
+                }
+                else{
+                    max_val = atoi(str);
+                }
+            }
+        }
+        ch1 = fgetc(fh);
+    }
+    image = newImage(width, height); // creating a new image struct to store all the image data.
+    bytes_data = malloc(width * height * 3); // allocating space for byte array to read all the raw data.
+    length = fread(bytes_data, sizeof(uint8_t), width * height * 3, fh); // Reading all the raw data.
+    image->width = width; // storing width of the image in image structure.
+    image->height = height; // storing height of the image in image structure.
+    image->length = length; // storing the length of the data in image structure.
+    for(count = 0; count < length; count++){
+        image->data[count] = (int)bytes_data[count]; // converting the byte data into to int and storing into the image structure.
+        printf("\n%d", image->data[count]);
+    }
+    fclose(fh); // closing the file.
+    return image; // returnign the image structure.
+}
+
 int main(int argc, char *argv[]) {
     // call readPX based on args
     printf("P3 / P6 / P7 image reader / writer\n");
@@ -162,11 +226,17 @@ int main(int argc, char *argv[]) {
     char *format = argv[1];
     char *inputFile = argv[2];
     char *outputFile = argv[3];
-    if (format[0] == '3') {
+    if (format[1] == '3') {
         printf("Converting to P3\n");
         Image* image = readP3(inputFile);
         writeP3(image, outputFile);
-    } else {
+    } 
+    else if(format[1] == '6'){
+        printf("Reading P6 File\n");
+        Image* image = readP6(inputFile);
+        printf("Finished Reading\n");
+    }
+    else {
         printf("Unknown format %s\n", format);
     }
     return 0;
