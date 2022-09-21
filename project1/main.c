@@ -13,7 +13,7 @@
 // structure holding the image info
 typedef struct {
     int width, height;
-    int *data;
+    uint8_t *data;
     int length;
 } Image;
 
@@ -22,7 +22,7 @@ Image *newImage(int width, int height) {
     Image *image = malloc(sizeof(Image));
     image->width = width;
     image->height = height;
-    image->data = malloc(image->width * image->height * 3);
+    image->data = malloc(sizeof(uint8_t) * image->width * image->height * 3);
     image->length = 0;
     return image;
 }
@@ -46,7 +46,7 @@ int getImageFormat(char *fileName) {
     return format;
 }
 
-int fputAscii(int value, FILE *file) {
+int fputAscii(uint8_t value, FILE *file) {
     char ascii[12]; // buffer for the ASCII representation
     int len = snprintf(ascii, sizeof(ascii), "%d", value);
     for (int i = 0; i < len; i++) {
@@ -66,9 +66,7 @@ bool writeP7(Image *image, const char *fileName) {
     fputs("\nHEIGHT ", file);
     fputAscii(image->height, file);
     fputs("\nDEPTH 3\n", file);
-    for (int i = 0; i < image->length; i++) {
-        fputc(image->data[i], file);
-    }
+    fwrite(image->data, sizeof(uint8_t), image->width * image->height, file);
     fclose(file);
     return true;
 }
@@ -235,15 +233,11 @@ Image* readP6(char* fname){
         }
     }
     image = newImage(width, height); // creating a new image struct to store all the image data.
-    bytes_data = malloc(width * height * 3); // allocating space for byte array to read all the raw data.
-    length = fread(bytes_data, sizeof(uint8_t), width * height * 3, fh); // Reading all the raw data.
-    image->width = width; // storing width of the image in image structure.
-    image->height = height; // storing height of the image in image structure.
-    image->length = length; // storing the length of the data in image structure.
-    for(count = 0; count < length; count++){
-        i = (int)bytes_data[count];
-        printf("\n%d", i);
-    }
+    bytes_data = malloc(sizeof(uint8_t) * width * height * 3); // allocating space for byte array to read all the raw data.
+    image->length = fread(image->data, sizeof(uint8_t), width * height * 3, fh); // Reading all the raw data.
+    /*for(int count = 0; count < image->length; count++){
+        printf("\n%d", (uint8_t) image->data[count]);
+    }*/
     printf("\n");
     fclose(fh); // closing the file.
     return image; // returnign the image structure.
