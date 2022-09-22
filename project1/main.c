@@ -15,6 +15,7 @@ typedef struct {
     int width, height;
     uint8_t *data;
     int length;
+    uint8_t depth;
 } Image;
 
 // Allocate a new image
@@ -22,7 +23,9 @@ Image *newImage(int width, int height) {
     Image *image = malloc(sizeof(Image));
     image->width = width;
     image->height = height;
-    image->data = malloc(sizeof(uint8_t) * image->width * image->height * 3);
+    image->depth = 4;
+    // this will always have space for the alpha channel
+    image->data = malloc(sizeof(uint8_t) * image->width * image->height * 4);
     image->length = 0;
     return image;
 }
@@ -32,8 +35,8 @@ void freeImage(Image *image) {
     free(image);
 }
 
-// add a pixel value to the end of the image's data buffer
-void addPixel(Image *image, int value) {
+// add a channel value to the end of the image's data buffer
+void addChannel(Image *image, int value) {
     image->data[image->length++] = value;
 }
 
@@ -65,8 +68,25 @@ bool writeP7(Image *image, const char *fileName) {
     fputAscii(image->width, file);
     fputs("\nHEIGHT ", file);
     fputAscii(image->height, file);
-    fputs("\nDEPTH 3\n", file);
-    fwrite(image->data, sizeof(uint8_t), image->width * image->height, file);
+    uint8_t depth = image->depth;
+    fputs("\nDEPTH \n", file);
+    fputAscii(depth, file);
+    if (depth == 4) {
+        // this contains r,g,b,a
+        fwrite(image->data, sizeof(uint8_t), image->length, file);
+    } else if (depth == 3) {
+        // this contains r,b,g
+        int channelCount = 0;
+        for (int i = 0; i < image->length; i++) {
+            channelCount++;
+            if (channelCount == 4) {
+                // ignore the alpha channel
+                channelCount = 0;
+                continue;
+            }
+            fputc(image->data[i], file);
+        }
+    }
     fclose(file);
     return true;
 }
@@ -82,7 +102,14 @@ bool writeP3(Image *image, const char *fileName) {
     fputAscii(image->height, file);
     fputc('\n', file);
     int lineLength = 0;
+    int channelCount = 0;
     for (int i = 0; i < image->length; i++) {
+        channelCount++;
+        if (channelCount == 4) {
+            // ignore alpha channel
+            channelCount = 0;
+            continue;
+        }
         int len = fputAscii(image->data[i], file);
         lineLength += len + 1;
         if (lineLength >= 65 || i == image->length - 1) {
@@ -117,6 +144,7 @@ Image *readP3(char *fileName) {
     // width appears first in the file, then height, then the pixels
     int width = -1, height = -1;
     Image *image = NULL;
+    int channelCount = 0;
 
     // loop over every character in the file
     // this will parse different sections by setting the flags above
@@ -171,7 +199,13 @@ Image *readP3(char *fileName) {
                     // we have both the width and the height, build
                     image = newImage(width, height);
                 } else {
-                    addPixel(image, value);
+                    channelCount++;
+                    addChannel(image, value);
+                    if (channelCount == 3) {
+                        // add alpha channel
+                        addChannel(image, 0xFF);
+                        channelCount = 0;
+                    }
                 }
             }
             continue; // skip whitespace
@@ -234,7 +268,17 @@ Image* readP6(char* fname){
     }
     image = newImage(width, height); // creating a new image struct to store all the image data.
     bytes_data = malloc(sizeof(uint8_t) * width * height * 3); // allocating space for byte array to read all the raw data.
-    image->length = fread(image->data, sizeof(uint8_t), width * height * 3, fh); // Reading all the raw data.
+    length = fread(bytes_data, sizeof(uint8_t), width * height * 3, fh); // Reading all the raw data.
+    int channelCount = 0;
+    for (uint32_t i = 0; i < length; i++) {
+        channelCount++;
+        addChannel(image, bytes_data[i]);
+        if (channelCount == 3) {
+            // add alpha channel
+            addChannel(image, 0xFF);
+            channelCount = 0;
+        }
+    }
     /*for(int count = 0; count < image->length; count++){
         printf("\n%d", (uint8_t) image->data[count]);
     }*/
