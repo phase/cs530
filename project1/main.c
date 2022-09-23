@@ -212,6 +212,10 @@ Image *readP3(char *fileName) {
         }
         index++;
     }
+    if(image->length != width * height * 4 || c != EOF){ // Checking if we have a short read or there is more data than specifed in the header. If that is the case then the file is corrupted.
+        fclose(file);
+        return NULL;
+    }
     fclose(file);
     return image;
 }
@@ -238,7 +242,7 @@ Image* readP6(char* fname){
     } 
  // Proceed with the rest of the program if it is correct.
     ch1 = fgetc(fh);
-    while((width == -1 || height == -1 || max_val == -1) && ch1 != EOF){ // While we do not get the width and height of the file, we loop through this.
+    while((width == -1 || height == -1 || max_val == -1) && ch1 != EOF){ // While we do not get the width, height and max value of the file, we loop through this.
         ch1 = fgetc(fh);
         if(ch1 == '#'){ // Checking for comments.
             while(ch1 != '\n'){ // Getting to the end of the comment.
@@ -257,20 +261,29 @@ Image* readP6(char* fname){
                 if(width == -1){ // If width not read, read width.
                     width = atoi(str);
                 }
-                else if(width != -1 && height == -1){ // else read height.
+                else if(width != -1 && height == -1){ // else if width is obtained read height.
                     height = atoi(str);
                 }
-                else{
+                else{ // else read max val.
                     max_val = atoi(str);
                 }
             }
         }
     }
+    if(max_val != 255){ // Cheking if the we have reached the correct end of the header or if there is some other data. If there is some other data then the file is corrupted.
+        fclose(fh);
+        return NULL;
+    }
     image = newImage(width, height, max_val); // creating a new image struct to store all the image data.
     bytes_data = malloc(sizeof(uint8_t) * width * height * 3); // allocating space for byte array to read all the raw data.
     length = fread(bytes_data, sizeof(uint8_t), width * height * 3, fh); // Reading all the raw data.
+    ch1 = fgetc(fh);
+    if(length != width * height * 3 || ch1 != EOF){ // Checking if we have a short read or there is more data than specifed in the header. If that is the case then the file is corrupted.
+        fclose(fh);
+        return NULL;
+    }
     int channelCount = 0;
-    for (int i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++) { // adding data to the image struct.
         channelCount++;
         addChannel(image, bytes_data[i]);
         if (channelCount == 3) {
@@ -287,10 +300,10 @@ bool writeP6(Image * image, char *fname){
     FILE * fh;
     int skip_byte = 3;
     int count = 0;
-    uint8_t * bytes_data = malloc(image->width * image->height * 3);
+    uint8_t * bytes_data = malloc(image->width * image->height * 3); // allocating space to the array.
 
-    for(int i = 0; i < image->length; i++){
-        if(i != 0 && i%skip_byte == 0){
+    for(int i = 0; i < image->length; i++){ // reading image data into the newly allocated array.
+        if(i != 0 && i%skip_byte == 0){ // Check to skip the alpha channel values.
             skip_byte += 4;
         }
         else{
@@ -298,7 +311,8 @@ bool writeP6(Image * image, char *fname){
             count++; 
         }
     }
-    fh = fopen(fname, "wb");
+    fh = fopen(fname, "wb"); // Opening the file in write mode.
+    // Writing the header to the file.
     fputc('P', fh);
     fputc('6', fh);
     fputc('\n', fh);
@@ -308,12 +322,13 @@ bool writeP6(Image * image, char *fname){
     fputc('\n', fh);
     fprintf(fh, "%d", 255);
     fputc('\n', fh);
-    fwrite(bytes_data, sizeof(uint8_t), image->width * image->height * 3, fh);
-    return true;
+    fwrite(bytes_data, sizeof(uint8_t), image->width * image->height * 3, fh); // Writing the actual data into the file.
+    fclose(fh); // Closing the file.
+    return true; // returing true once the all the data has been written.
 }
 
 Image * readP7(char* fname){
-    FILE * fh = fopen(fname, "rb"); // Opening the P6 file in read mode.
+    FILE * fh = fopen(fname, "rb"); // Opening the P7 file in read mode.
     Image * image = NULL;
     uint8_t * bytes_data;
     int length;
@@ -335,7 +350,7 @@ Image * readP7(char* fname){
     } 
  // Proceed with the rest of the program if it is correct.
     ch1 = fgetc(fh);
-    while((width == -1 || height == -1 || depth == -1 || max_val == -1) && ch1 != EOF){ // While we do not get the width and height of the file, we loop through this.
+    while((width == -1 || height == -1 || depth == -1 || max_val == -1) && ch1 != EOF){ // While we do not get the width, height, depth and max value of the file, we loop through this.
         ch1 = fgetc(fh);
         if(ch1 == '#'){ // Checking for comments.
             while(ch1 != '\n'){ // Getting to the end of the comment.
@@ -354,30 +369,29 @@ Image * readP7(char* fname){
                 if(width == -1){ // If width not read, read width.
                     width = atoi(str);
                 }
-                else if(width != -1 && height == -1){ // else read height.
+                else if(width != -1 && height == -1){ // else if width is obtained read height.
                     height = atoi(str);
                 }
-                else if(width != -1 && height != -1 && depth == -1){
+                else if(width != -1 && height != -1 && depth == -1){ // else if width and height are obtained read depth.
                     depth = atoi(str);
                 }
-                else{
+                else{ // else read max value.
                     max_val = atoi(str);
                 }
             }
         }
     }
     count = 1;
-    while (count == 1){
+    while (count == 1){ // Loop to check if we have reached the end of the header of the P7 file.
         i = 0;
         ch1 = fgetc(fh);
-        while (ch1 != '\n'){
+        while (ch1 != '\n'){ // Obtaining the entire string untill new line character occurs.
             str2[i] = ch1;
             i++;
             ch1 = fgetc(fh);
         }
         str2[i] = '\0';
-        printf("%s\n", str2);
-        if(i == 7 && str2[0] == 'E' && str2[1] == 'N' && str2[2] == 'D' && str2[3] == 'H' && str2[4] == 'D' && str2[5] == 'R'){
+        if(i == 7 && str2[0] == 'E' && str2[1] == 'N' && str2[2] == 'D' && str2[3] == 'H' && str2[4] == 'D' && str2[5] == 'R'){ // If the string is equal to ENHDR then the set the loop flag to 0.
             count = 0;
         }
         
@@ -385,8 +399,12 @@ Image * readP7(char* fname){
     image = newImage(width, height, max_val); // creating a new image struct to store all the image data.
     bytes_data = malloc(sizeof(uint8_t) * width * height * 4); // allocating space for byte array to read all the raw data.
     length = fread(bytes_data, sizeof(uint8_t), width * height * 4, fh); // Reading all the raw data.
-    for (int i = 0; i < length; i++) {
-        addChannel(image, bytes_data[i]);
+    if(length != width * height * 4 || ch1 != EOF){ // Checking if we have a short read or there is more data than specifed in the header. If that is the case then the file is corrupted.
+        fclose(fh);
+        return NULL;
+    }
+    for (int i = 0; i < length; i++) { // Storing the data in image struct.
+        addChannel(image, bytes_data[i]); 
     }
     fclose(fh); // closing the file.
     return image; // returnign the image structure.
