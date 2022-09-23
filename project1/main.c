@@ -292,6 +292,7 @@ Image* readP6(char* fname){
             channelCount = 0;
         }
     }
+    free(bytes_data); // Freeing allocated data.
     fclose(fh); // closing the file.
     return image; // returnign the image structure.
 }
@@ -323,6 +324,8 @@ bool writeP6(Image * image, char *fname){
     fprintf(fh, "%d", 255);
     fputc('\n', fh);
     fwrite(bytes_data, sizeof(uint8_t), image->width * image->height * 3, fh); // Writing the actual data into the file.
+    free(bytes_data); // Freeing allocated data.
+    free(image); // Freeing image data.
     fclose(fh); // Closing the file.
     return true; // returing true once the all the data has been written.
 }
@@ -407,6 +410,7 @@ Image * readP7(char* fname){
     for (int i = 0; i < length; i++) { // Storing the data in image struct.
         addChannel(image, bytes_data[i]); 
     }
+    free(bytes_data); // Freeing allocated data.
     fclose(fh); // closing the file.
     return image; // returnign the image structure.
 
