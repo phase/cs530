@@ -394,10 +394,10 @@ Image * readP7(char* fname){
 }
 
 int main(int argc, char *argv[]) {
-    // call readPX based on args
     printf("P3 / P6 / P7 image reader / writer\n");
     if (argc != 4) {
         printf("Invalid arguments! Expected ./ppmrw <format> <input> <output>\n");
+        return 1;
     }
 
     char *format = argv[1];
@@ -406,6 +406,8 @@ int main(int argc, char *argv[]) {
 
     int inputFileFormat = getImageFormat(inputFile);
     Image *image = NULL;
+
+    // call readPX based on args
     if (inputFileFormat == '3') {
         image = readP3(inputFile);
     } else if (inputFileFormat == '6') {
@@ -416,22 +418,25 @@ int main(int argc, char *argv[]) {
 
     if (image != NULL) {
         if (format[0] == '3') {
-            printf("Converting to P3\n");
+            printf("Converting to P3...\n");
             writeP3(image, outputFile);
         } else if (format[0] == '7') {
-            printf("Converting to P7\n");
+            printf("Converting to P7...\n");
             writeP7(image, outputFile);
         } else if (format[0] == '6'){
-            printf("Converting to P6\n");
+            printf("Converting to P6...\n");
             writeP6(image, outputFile);
-            printf("Completed Converting\n");
-        } 
-        else {
-            printf("Unknown format %s\n", format);
+        } else {
+            printf("Error: '%s' is an unknown image format.\n", format);
+            return 1;
         }
 
+        printf("Completed Converting. New image located at %s\n", outputFile);
+
         freeImage(image);
+    } else {
+        printf("Error: Couldn't read image %s\n", inputFile);
+        return 1;
     }
-    printf("Ended");
     return 0;
 }
