@@ -212,7 +212,6 @@ Image *readP3(char *fileName) {
         }
         index++;
     }
-    c = fgetc(file);
     if(image->length != width * height * 4 || c != EOF){ // Checking if we have a short read or there is more data than specifed in the header. If that is the case then the file is corrupted.
         fclose(file);
         return NULL;
