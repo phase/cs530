@@ -212,6 +212,7 @@ Image *readP3(char *fileName) {
         }
         index++;
     }
+    c = fgetc(file);
     if(image->length != width * height * 4 || c != EOF){ // Checking if we have a short read or there is more data than specifed in the header. If that is the case then the file is corrupted.
         fclose(file);
         return NULL;
@@ -399,6 +400,7 @@ Image * readP7(char* fname){
     image = newImage(width, height, max_val); // creating a new image struct to store all the image data.
     bytes_data = malloc(sizeof(uint8_t) * width * height * 4); // allocating space for byte array to read all the raw data.
     length = fread(bytes_data, sizeof(uint8_t), width * height * 4, fh); // Reading all the raw data.
+    ch1 = fgetc(fh);
     if(length != width * height * 4 || ch1 != EOF){ // Checking if we have a short read or there is more data than specifed in the header. If that is the case then the file is corrupted.
         fclose(fh);
         return NULL;
