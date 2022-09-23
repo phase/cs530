@@ -12,17 +12,18 @@
 
 // structure holding the image info
 typedef struct {
-    int width, height;
+    int width, height, maxVal;
     uint8_t *data;
     int length;
     uint8_t depth;
 } Image;
 
 // Allocate a new image
-Image *newImage(int width, int height) {
+Image *newImage(int width, int height, int maxVal) {
     Image *image = malloc(sizeof(Image));
     image->width = width;
     image->height = height;
+    image->maxVal = maxVal;
     image->depth = 4;
     // this will always have space for the alpha channel
     image->data = malloc(sizeof(uint8_t) * image->width * image->height * 4);
@@ -49,15 +50,6 @@ int getImageFormat(char *fileName) {
     return format;
 }
 
-int fputAscii(uint8_t value, FILE *file) {
-    char ascii[12]; // buffer for the ASCII representation
-    int len = snprintf(ascii, sizeof(ascii), "%d", value);
-    for (int i = 0; i < len; i++) {
-        fputc(ascii[i], file);
-    }
-    return len;
-}
-
 bool writeP7(Image *image, const char *fileName) {
     FILE *file = fopen(fileName, "w");
     if (file == NULL) return false;
@@ -72,7 +64,7 @@ bool writeP7(Image *image, const char *fileName) {
     fputs("\nDEPTH ", file);
     fprintf(file, "%d", image->depth);
     fputs("\nMAXVAL ", file);
-    fprintf(file, "%d", 255);
+    fprintf(file, "%d", image->maxVal);
     fputs("\nTUPLTYPE RGB_ALPHA", file);
     fputs("\nENDHDR\n", file);
     if (depth == 4) {
@@ -105,6 +97,7 @@ bool writeP3(Image *image, const char *fileName) {
     fputc(' ', file);
     fprintf(file, "%d", image->height);
     fputc('\n', file);
+    fprintf(file, "%d\n", image->maxVal);
     int lineLength = 0;
     int channelCount = 0;
     for (int i = 0; i < image->length; i++) {
@@ -114,7 +107,7 @@ bool writeP3(Image *image, const char *fileName) {
             channelCount = 0;
             continue;
         }
-        int len = fputAscii(image->data[i], file);
+        int len = fprintf(file, "%d", image->data[i]);
         lineLength += len + 1;
         if (lineLength >= 65 || i == image->length - 1) {
             lineLength = 0;
@@ -146,7 +139,7 @@ Image *readP3(char *fileName) {
     int bufferIndex = 0;
     // width and height of the image
     // width appears first in the file, then height, then the pixels
-    int width = -1, height = -1;
+    int width = -1, height = -1, maxVal = -1;
     Image *image = NULL;
     int channelCount = 0;
 
@@ -200,9 +193,12 @@ Image *readP3(char *fileName) {
                 } else if (height == -1) {
                     // we found the height
                     height = value;
+                } else if (maxVal == -1) {
+                    maxVal = value;
                     // we have both the width and the height, build
-                    image = newImage(width, height);
+                    image = newImage(width, height, maxVal);
                 } else {
+                    if (value > maxVal) return NULL; // invalid number
                     channelCount++;
                     addChannel(image, value);
                     if (channelCount == 3) {
@@ -270,7 +266,7 @@ Image* readP6(char* fname){
             }
         }
     }
-    image = newImage(width, height); // creating a new image struct to store all the image data.
+    image = newImage(width, height, max_val); // creating a new image struct to store all the image data.
     bytes_data = malloc(sizeof(uint8_t) * width * height * 3); // allocating space for byte array to read all the raw data.
     length = fread(bytes_data, sizeof(uint8_t), width * height * 3, fh); // Reading all the raw data.
     int channelCount = 0;
@@ -386,7 +382,7 @@ Image * readP7(char* fname){
         }
         
     }
-    image = newImage(width, height); // creating a new image struct to store all the image data.
+    image = newImage(width, height, max_val); // creating a new image struct to store all the image data.
     bytes_data = malloc(sizeof(uint8_t) * width * height * 4); // allocating space for byte array to read all the raw data.
     length = fread(bytes_data, sizeof(uint8_t), width * height * 4, fh); // Reading all the raw data.
     for (int i = 0; i < length; i++) {
