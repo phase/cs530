@@ -65,12 +65,16 @@ bool writeP7(Image *image, const char *fileName) {
     fputc('7', file);
     fputc('\n', file);
     fputs("WIDTH ", file);
-    fputAscii(image->width, file);
+    fprintf(file, "%d", image->width);
     fputs("\nHEIGHT ", file);
-    fputAscii(image->height, file);
+    fprintf(file, "%d", image->height);
     uint8_t depth = image->depth;
-    fputs("\nDEPTH \n", file);
-    fputAscii(depth, file);
+    fputs("\nDEPTH ", file);
+    fprintf(file, "%d", image->depth);
+    fputs("\nMAXVAL ", file);
+    fprintf(file, "%d", 255);
+    fputs("\nTUPLTYPE RGB_ALPHA", file);
+    fputs("\nENDHDR\n", file);
     if (depth == 4) {
         // this contains r,g,b,a
         fwrite(image->data, sizeof(uint8_t), image->length, file);
@@ -97,9 +101,9 @@ bool writeP3(Image *image, const char *fileName) {
     fputc('P', file);
     fputc('3', file);
     fputc('\n', file);
-    fputAscii(image->width, file);
+    fprintf(file, "%d", image->width);
     fputc(' ', file);
-    fputAscii(image->height, file);
+    fprintf(file, "%d", image->height);
     fputc('\n', file);
     int lineLength = 0;
     int channelCount = 0;
@@ -189,7 +193,7 @@ Image *readP3(char *fileName) {
                 // reset buffer
                 for (int i = 0; i < MAX_DIGITS; i++) { buffer[i] = '\0'; }
 
-                if (value > 255) return false; // invalid number
+                //if (value > 255) return false; // invalid number
                 if (width == -1) {
                     // we found the width
                     width = value;
@@ -270,7 +274,7 @@ Image* readP6(char* fname){
     bytes_data = malloc(sizeof(uint8_t) * width * height * 3); // allocating space for byte array to read all the raw data.
     length = fread(bytes_data, sizeof(uint8_t), width * height * 3, fh); // Reading all the raw data.
     int channelCount = 0;
-    for (uint32_t i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++) {
         channelCount++;
         addChannel(image, bytes_data[i]);
         if (channelCount == 3) {
@@ -279,23 +283,117 @@ Image* readP6(char* fname){
             channelCount = 0;
         }
     }
-    /*for(int count = 0; count < image->length; count++){
-        printf("\n%d", (uint8_t) image->data[count]);
-    }*/
-    printf("\n");
     fclose(fh); // closing the file.
     return image; // returnign the image structure.
 }
 
 bool writeP6(Image * image, char *fname){
     FILE * fh;
+    int skip_byte = 3;
+    int count = 0;
     uint8_t * bytes_data = malloc(image->width * image->height * 3);
 
     for(int i = 0; i < image->length; i++){
-        printf("\n%d", image->data[i]);
-        //printf("\n%d", bytes_data[i]);
+        if(i != 0 && i%skip_byte == 0){
+            skip_byte += 4;
+        }
+        else{
+            bytes_data[count] = image->data[i];
+            count++; 
+        }
     }
-    
+    fh = fopen(fname, "wb");
+    fputc('P', fh);
+    fputc('6', fh);
+    fputc('\n', fh);
+    fprintf(fh, "%d", image->width);
+    fputc(' ', fh);
+    fprintf(fh, "%d", image->height);
+    fputc('\n', fh);
+    fprintf(fh, "%d", 255);
+    fputc('\n', fh);
+    fwrite(bytes_data, sizeof(uint8_t), image->width * image->height * 3, fh);
+    return true;
+}
+
+Image * readP7(char* fname){
+    FILE * fh = fopen(fname, "rb"); // Opening the P6 file in read mode.
+    Image * image = NULL;
+    uint8_t * bytes_data;
+    int length;
+    int count, i;
+    int width = -1;
+    int height = -1;
+    int depth = -1;
+    int max_val = -1;
+    char ch1, ch2;
+    char str[5];
+    char str2[100];
+    if (fh == NULL) // Checking if the file exists.
+        return NULL;
+    ch1 = fgetc(fh);
+    ch2 = fgetc(fh);
+    if(ch1 != 'P' && ch2 != '7'){ // Checking if the format is correct.
+        fclose(fh); // If it is not we close the file;
+        return NULL; // and return NULL;
+    } 
+ // Proceed with the rest of the program if it is correct.
+    ch1 = fgetc(fh);
+    while((width == -1 || height == -1 || depth == -1 || max_val == -1) && ch1 != EOF){ // While we do not get the width and height of the file, we loop through this.
+        ch1 = fgetc(fh);
+        if(ch1 == '#'){ // Checking for comments.
+            while(ch1 != '\n'){ // Getting to the end of the comment.
+                ch1 = fgetc(fh);
+            }
+        }
+        else{ // If it is not a comment.
+            if(isdigit(ch1)){ // Checking if it is a digit
+                count = 0;
+                while(isdigit(ch1)){ // reading the entire number.
+                    str[count] = ch1;
+                    count++;
+                    ch1 = fgetc(fh);
+                }
+                str[count] = '\0'; // adding the escape character at the end.
+                if(width == -1){ // If width not read, read width.
+                    width = atoi(str);
+                }
+                else if(width != -1 && height == -1){ // else read height.
+                    height = atoi(str);
+                }
+                else if(width != -1 && height != -1 && depth == -1){
+                    depth = atoi(str);
+                }
+                else{
+                    max_val = atoi(str);
+                }
+            }
+        }
+    }
+    count = 1;
+    while (count == 1){
+        i = 0;
+        ch1 = fgetc(fh);
+        while (ch1 != '\n'){
+            str2[i] = ch1;
+            i++;
+            ch1 = fgetc(fh);
+        }
+        str2[i] = '\0';
+        printf("%s\n", str2);
+        if(i == 7 && str2[0] == 'E' && str2[1] == 'N' && str2[2] == 'D' && str2[3] == 'H' && str2[4] == 'D' && str2[5] == 'R'){
+            count = 0;
+        }
+        
+    }
+    image = newImage(width, height); // creating a new image struct to store all the image data.
+    bytes_data = malloc(sizeof(uint8_t) * width * height * 4); // allocating space for byte array to read all the raw data.
+    length = fread(bytes_data, sizeof(uint8_t), width * height * 4, fh); // Reading all the raw data.
+    for (int i = 0; i < length; i++) {
+        addChannel(image, bytes_data[i]);
+    }
+    fclose(fh); // closing the file.
+    return image; // returnign the image structure.
 
 }
 
@@ -313,13 +411,11 @@ int main(int argc, char *argv[]) {
     int inputFileFormat = getImageFormat(inputFile);
     Image *image = NULL;
     if (inputFileFormat == '3') {
-        printf("Reached Here1!");
         image = readP3(inputFile);
-        printf("Reached Here2!");
     } else if (inputFileFormat == '6') {
         image = readP6(inputFile);
     } else if (inputFileFormat == '7') {
-        // TODO read p7
+        image = readP7(inputFile);
     }
 
     if (image != NULL) {
@@ -330,8 +426,9 @@ int main(int argc, char *argv[]) {
             printf("Converting to P7\n");
             writeP7(image, outputFile);
         } else if (format[0] == '6'){
-            printf("Converting to P3\n");
+            printf("Converting to P6\n");
             writeP6(image, outputFile);
+            printf("Completed Converting\n");
         } 
         else {
             printf("Unknown format %s\n", format);
@@ -339,5 +436,6 @@ int main(int argc, char *argv[]) {
 
         freeImage(image);
     }
+    printf("Ended");
     return 0;
 }
