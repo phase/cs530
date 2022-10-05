@@ -18,5 +18,6 @@ void v3_reflect(float *dst, float *v, float *n);
 float v3_length(float *a);
 void v3_normalize(float *dst, float *a);
 bool v3_equals(float *a, float *b, float tolerance);
+bool almostEqual(double a, double b, float tolerance);
 
 #endif //CS530_V3MATH_H

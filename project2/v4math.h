@@ -19,5 +19,6 @@ float v4_length(float *a);
 void v4_normalize(float *dst, float *a);
 bool v4_equals(float *a, float *b, float tolerance);
 void v4_matrix_multiply(float* dst, float* matrix, float* a);
+bool almostEqual(double a, double b, float tolerance);
 
 #endif

@@ -72,10 +72,6 @@ void v4_normalize(float *dst, float *a) {
     dst[3] = a[3]/len;
 }
 
-bool almostEqual(double a, double b, float tolerance) {
-    return fabs(a - b) < tolerance;
-}
-
 bool v4_equals(float *a, float *b, float tolerance) {
     return almostEqual(a[0], b[0], tolerance) &&
            almostEqual(a[1], b[1], tolerance) &&
