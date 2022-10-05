@@ -39,13 +39,6 @@ void v3_scale(float *dst, float s) {
     dst[2] = dst[2] * s;
 }
 
-void v4_scale(float *dst, float s) {
-    dst[0] = dst[0] * s;
-    dst[1] = dst[1] * s;
-    dst[2] = dst[2] * s;
-    dst[3] = dst[3] * s;
-}
-
 float v3_angle(float *a, float *b) {
     float PI = 3.14;
     float *a_normal, *b_normal;
@@ -62,7 +55,7 @@ float v3_angle_quick(float *a, float *b) {
 }
 
 void v3_reflect(float *dst, float *v, float *n) {
-
+    // TODO
 }
 
 float v3_length(float *a) {
