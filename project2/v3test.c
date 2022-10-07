@@ -327,22 +327,43 @@ void test_v3() {
 
 void test_v4() {
     {// test v4_matrix_multiply
-        float matrix[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-        float a[4] = {1, 2, 3, 4};
+        float matrix1[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        float a1[4] = {1, 2, 3, 4};
         float actual[4];
-        float expected[4] = {30, 70, 110, 150};
-        v4_matrix_multiply(actual, matrix, a);
-        if(v4_equals(actual, expected, 1)){
+        float expected1[4] = {30, 70, 110, 150};
+        v4_matrix_multiply(actual, matrix1, a1);
+        if(v4_equals(actual, expected1, 1)){
                 printf("[\u2713] Test v4_matrix_multiply 1 passed: got %f %f %f %f\n", actual[0], actual[1], actual[2], actual[3]);
         }
         else{
-        printf("[ ] Test v4_matrix_multiply 1 failed: expected= %f %f %f %f, actual= %f %f %f %f\n", expected[0], expected[1], expected[2], expected[3], actual[0], actual[1], actual[2], actual[3]);   
+        printf("[ ] Test v4_matrix_multiply 1 failed: expected= %f %f %f %f, actual= %f %f %f %f\n", expected1[0], expected1[1], expected1[2], expected1[3], actual[0], actual[1], actual[2], actual[3]);   
         }
+        float matrix2[16] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17};
+        float a2[4] = {2, 3, 4, 5};
+        float expected2[4] = {54, 110, 166, 222};
+        v4_matrix_multiply(actual, matrix2, a2);
+        if(v4_equals(actual, expected2, 1)){
+                printf("[\u2713] Test v4_matrix_multiply 2 passed: got %f %f %f %f\n", actual[0], actual[1], actual[2], actual[3]);
+        }
+        else{
+        printf("[ ] Test v4_matrix_multiply 2 failed: expected= %f %f %f %f, actual= %f %f %f %f\n", expected2[0], expected2[1], expected2[2], expected2[3], actual[0], actual[1], actual[2], actual[3]);   
+        }
+        float matrix3[16] = {3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18};
+        float a3[4] = {3, 4, 5, 6};
+        float expected3[4] = {86, 158, 230, 302};
+        v4_matrix_multiply(actual, matrix3, a3);
+        if(v4_equals(actual, expected3, 1)){
+                printf("[\u2713] Test v4_matrix_multiply 2 passed: got %f %f %f %f\n", actual[0], actual[1], actual[2], actual[3]);
+        }
+        else{
+        printf("[ ] Test v4_matrix_multiply 2 failed: expected= %f %f %f %f, actual= %f %f %f %f\n", expected3[0], expected3[1], expected3[2], expected3[3], actual[0], actual[1], actual[2], actual[3]);   
+        }
+        
     }
 }
 
 int main(int argc, char *argv[]) {
-    test_v3();
-    test_v4();
+    test_v3(); // Runnings tests for v3 suite.
+    test_v4(); // Running tests for v4 suite
     return 0;
 }
