@@ -19,5 +19,7 @@ float v3_length(float *a);
 void v3_normalize(float *dst, float *a);
 bool v3_equals(float *a, float *b, float tolerance);
 bool almostEqual(double a, double b, float tolerance);
+bool v4_equals(float *a, float *b, float tolerance);
+void v4_matrix_multiply(float* dst, float* matrix, float* a);
 
 #endif //CS530_V3MATH_H
