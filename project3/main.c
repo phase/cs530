@@ -49,6 +49,10 @@ int *raycastPlane(int *pixArray, plane *Plane){
     //Cast a ray to a plane.
 }
 
+int *drawRay(int *pixArray, int *startPoint, int *endPoint){
+    // Draw a ray from given point to end point.
+}
+
 int main(int argc, char *argv[]){
     return 0;
 }
