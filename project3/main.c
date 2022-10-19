@@ -4,34 +4,38 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <math.h>
 #include "v3math.h"
 #include "ppm.h"
 
 typedef struct{
-    float color[3];
-    int position[3];
     int radius;
 } sphere;
 
 typedef struct{
-    float color[3];
-    int position[3];
-    int normal[3];
+    float normal[3];
 } plane;
 
 typedef struct{
     int flag; //if flag = 0 then it is a sphere, flag = 1 then it is a plane.
+    float color[3];
+    float position[3];
     sphere *Sphere;
     plane *Plane;
-} object;
+} Object;
 
 typedef struct{
     // camera width and height
-    double width;
-    double height;
-    object *objects;
+    float width;
+    float height;
+    Object **objects;
     int size;
 } Scene;
+
+typedef struct {
+    float* position;
+    float* unitRay;
+} Ray;
 
 FILE *extractData(FILE * fh, char *ch, char *str){
     int count = 0;
@@ -57,14 +61,18 @@ Scene readFile(char *filename){
     char *str;
     int size = 0;
     int count;
-    object *Objects = malloc(sizeof(Objects) * 128);
-    double width = -1, height = -1;
+    Object **objects = malloc(sizeof(Object*) * 128);
+    float width = -1, height = -1;
     while(ch != EOF){
         str = malloc(sizeof(char) * 20);
         fh = extractData(fh, &ch, str);
         if(strcmp(str, "sphere") == 0){
-            Objects[size].flag = 0;
-            Objects[size].Sphere = malloc(sizeof(sphere));
+            // allocate a new object
+            Object *obj = malloc(sizeof(Object));
+            objects[size] = obj;
+
+            obj->flag = 0;
+            obj->Sphere = malloc(sizeof(sphere));
             while(ch != '\n' && ch != EOF){
                 str = malloc(sizeof(char) * 20);
                 fh = extractData(fh, &ch, str);
@@ -75,13 +83,13 @@ Scene readFile(char *filename){
                         fh = extractData(fh, &ch, str);
                         if(strlen(str) > 0){
                             printf("%s\n", str);
-                            Objects[size].Sphere->color[count] = atof(str);
+                            obj->color[count] = atof(str);
                             count++;
                         }
                         if(count == 3){
                             break;
                         }
-                    } 
+                    }
                 }
                 else if (strcmp(str, "position") == 0){
                     count = 0;
@@ -90,7 +98,7 @@ Scene readFile(char *filename){
                         fh = extractData(fh, &ch, str);
                         if(strlen(str) > 0){
                             printf("%s\n", str);
-                            Objects[size].Sphere->position[count] = atof(str);
+                            obj->position[count] = atof(str);
                             count++;
                         }
                         if(count == 3){
@@ -102,15 +110,19 @@ Scene readFile(char *filename){
                     fgetc(fh);
                     fh = extractData(fh, &ch, str);
                     printf("%s\n", str);
-                    Objects[size].Sphere->radius = atoi(str);
+                    obj->Sphere->radius = atof(str);
                 }
-                
+
             }
             size++;
         }
         if(strcmp(str, "plane") == 0){
-            Objects[size].flag = 1;
-            Objects[size].Plane = malloc(sizeof(plane));
+            // allocate a new object
+            Object *obj = malloc(sizeof(Object));
+            objects[size] = obj;
+
+            obj->flag = 1;
+            obj->Plane = malloc(sizeof(plane));
             while(ch != '\n' && ch != EOF){
                 str = malloc(sizeof(char) * 20);
                 fh = extractData(fh, &ch, str);
@@ -121,13 +133,13 @@ Scene readFile(char *filename){
                         fh = extractData(fh, &ch, str);
                         if(strlen(str) > 0){
                             printf("%s\n", str);
-                            Objects[size].Plane->color[count] = atof(str);
+                            obj->color[count] = atof(str);
                             count++;
                         }
                         if(count == 3){
                             break;
                         }
-                    } 
+                    }
                 }
                 else if (strcmp(str, "position") == 0){
                     count = 0;
@@ -136,7 +148,7 @@ Scene readFile(char *filename){
                         fh = extractData(fh, &ch, str);
                         if(strlen(str) > 0){
                             printf("%s\n", str);
-                            Objects[size].Plane->position[count] = atof(str);
+                            obj->position[count] = atof(str);
                             count++;
                         }
                         if(count == 3){
@@ -151,7 +163,7 @@ Scene readFile(char *filename){
                         fh = extractData(fh, &ch, str);
                         if(strlen(str) > 0){
                             printf("%s\n", str);
-                            Objects[size].Plane->normal[count] = atof(str);
+                            obj->Plane->normal[count] = atof(str);
                             count++;
                         }
                         if(count == 3){
@@ -173,7 +185,6 @@ Scene readFile(char *filename){
                     fgetc(fh); // skip space
                     extractData(fh, &ch, buffer);
                     if (strlen(buffer) > 0) {
-                        printf("%s\n", buffer);
                         width = atof(buffer);
                     }
                 } else if (strcmp(item, "height") == 0) {
@@ -181,25 +192,24 @@ Scene readFile(char *filename){
                     fgetc(fh); // skip space
                     extractData(fh, &ch, buffer);
                     if (strlen(buffer) > 0) {
-                        printf("%s\n", buffer);
                         height = atof(buffer);
                     }
                 }
             }
         }
     }
-    printf("\nSphere - Radius: %d, Color: [%f, %f, %f], Position: [%d, %d, %d]", Objects[0].Sphere->radius, Objects[0].Sphere->color[0], Objects[0].Sphere->color[1], Objects[0].Sphere->color[2], Objects[0].Sphere->position[0], Objects[0].Sphere->position[1], Objects[0].Sphere->position[2]);
-    printf("\nPlane - Normal: [%d, %d, %d], Color: [%f, %f, %f], Position: [%d, %d, %d]", Objects[1].Plane->normal[0], Objects[1].Plane->normal[1], Objects[1].Plane->normal[2], Objects[1].Plane->color[0], Objects[1].Plane->color[1], Objects[1].Plane->color[2], Objects[1].Plane->position[0], Objects[1].Plane->position[1], Objects[1].Plane->position[2]);
+    printf("\nSphere - Radius: %d, Color: [%f, %f, %f], Position: [%f, %f, %f]", objects[0]->Sphere->radius, objects[0]->color[0], objects[0]->color[1], objects[0]->color[2], objects[0]->position[0], objects[0]->position[1], objects[0]->position[2]);
+    printf("\nPlane - Normal: [%f, %f, %f], Color: [%f, %f, %f], Position: [%f, %f, %f]", objects[1]->Plane->normal[0], objects[1]->Plane->normal[1], objects[1]->Plane->normal[2], objects[1]->color[0], objects[1]->color[1], objects[1]->color[2], objects[1]->position[0], objects[1]->position[1], objects[1]->position[2]);
     printf("\nCamera width: %f, height: %f\n", width, height);
     return (Scene){
         .width = width,
         .height = height,
-        .objects = Objects,
+        .objects = objects,
         .size = size + 1
     };
 }
 
-int *createPixArray(object *Objects){
+int *createPixArray(Object *objects){
     // convert objects and put them in int array.
 }
 
@@ -209,56 +219,96 @@ void writePixArray(int *pixArray){
 
 int *raycastSphere(sphere *sphere){
     //Cast a ray to a sphere.
+
 }
 
-int *raycastPlane(plane *plane){
-    //Cast a ray to a plane.
+float findPlaneIntersection(Ray ray, Object *obj){
+    float pDiff[3];
+    v3_subtract(pDiff, ray.position, obj->position);
+    float top = v3_dot_product(obj->Plane->normal, pDiff);
+    float bottom = v3_dot_product(obj->Plane->normal, ray.unitRay);
+    return top / bottom;
 }
 
 typedef struct {
-    object *hitObject;
+    bool valid;
+    Object *hitObject;
+    float distance;
 } RayResult;
 
-void render(Scene scene, double imageWidth, double imageHeight) {
-    double pixelWidth = scene.width / imageWidth;
-    double pixelHeight = scene.height / imageHeight;
+RayResult shoot(Scene scene, Ray ray) {
+    RayResult result = {false, NULL, INFINITY};
+    for (int m = 0; m < scene.size; m++) {
+        Object *obj = scene.objects[m];
+        if (obj == NULL) { continue; }
+
+        // call appropriate function to cast ray.
+        float distance;
+        if (obj->flag == 0) {
+            // TODO spheres
+            continue;
+        } else if (obj->flag == 1) {
+            distance = findPlaneIntersection(ray, obj);
+        } else {
+            continue;
+        }
+        if (distance > 0 && distance < result.distance) {
+            result.valid = true;
+            result.hitObject = obj;
+            result.distance = distance;
+        }
+    }
+    return result;
+}
+
+Image *render(Scene scene, int imageWidth, int imageHeight) {
+    printf("rendering scene\n");
+    float pixelWidth = scene.width / (float) imageWidth;
+    float pixelHeight = scene.height / (float) imageHeight;
 
     // specified by the instruction document
-    float center[3] = {0.0, 0.0, 0.0};
+    float center[3] = {0.0f, 0.0f, 0.0f};
+
+    Image *image = newImage(imageWidth, imageHeight, 255);
 
     for (int i = 0; i < imageHeight; i++) { // for each row
-        double py = center[1] - scene.height / 2 + pixelHeight * (i + 0.5); // y coord of row
+        float py = center[1] - scene.height / 2.0f + pixelHeight * ((float) i + 0.5f); // y coord of row
         for (int j = 0; j < imageWidth; j++) { // for each column
-            double px = center[0] - scene.width / 2 + pixelWidth * (j + 0.5); // x coord of column
-            double pz = center[2];
+            float px = center[0] - scene.width / 2.0f + pixelWidth * ((float) j + 0.5f); // x coord of column
+            float pz = center[2];
 
+            // build ray to cast
             float unitRay[3]; // unit ray vector
             float p[3] = (float[3]) {px, py, pz};
             v3_normalize(unitRay, p);
-            // float *x = shoot(ur); // return position of first hit
-            // image[i][j] = shade(x); // pixel colored by object hit
+            Ray ray = {.position = p, .unitRay = unitRay};
+
+            // cast ray
+            RayResult result = shoot(scene, ray);
+            // start with black
+            float *color = (float[3]) {0.0f, 0.0f, 0.0f};
+            // only set the color if we hit a valid object
+            if (result.valid) {
+                printf("found obj = %f %d\n", result.distance, result.hitObject->flag);
+                color = result.hitObject->color;
+            }
+            // store color in image
+            // convert 0.0 - 1.0 color to 0 - 255
+            addChannel(image, (int) floorf(color[0] * 255));
+            addChannel(image, (int) floorf(color[1] * 255));
+            addChannel(image, (int) floorf(color[2] * 255));
+            addChannel(image, 255);
         }
     }
+    return image;
+}
 
-    // todo put in shoot function
-    for (int i = 0; i < scene.size; i++){
-        object obj = scene.objects[i];
-
-        // call appropriate function to cast ray.
-        if (obj.flag == 0){
-            raycastSphere(obj.Sphere);
-        } else if (obj.flag == 1){
-            raycastPlane(obj.Plane);
-        }
+int main(int argc, char *argv[]) {
+    if (argc != 3) {
+        printf("Usage: ./raycast <scene> <output_image>\n");
     }
-}
-
-int *drawRay(int *pixArray, int *startPoint, int *endPoint){
-    // Draw a ray from given point to end point.
-}
-
-int main(int argc, char *argv[]){
     Scene scene = readFile(argv[1]);
-    render(scene, 100, 100);
+    Image *image = render(scene, 100, 100);
+    writeP3(image, argv[2]);
     return 0;
 }
