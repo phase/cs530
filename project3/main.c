@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include "v3math.h"
+#include "ppm.h"
 
 typedef struct{
     float color[3];
