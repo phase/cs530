@@ -209,25 +209,59 @@ Scene readFile(char *filename){
     };
 }
 
-int *createPixArray(Object *objects){
-    // convert objects and put them in int array.
+float findSphereIntersection(Ray ray, Object *obj, float *hitDest){
+    float r = (float) obj->Sphere->radius;
+    float pDiff[3];
+    v3_subtract(pDiff, obj->position, ray.position);
+    // distance from the start of the ray to the point inside the sphere
+    // that is still on the ray and closest to the center of the sphere
+    float tClose = v3_dot_product(ray.unitRay, pDiff);
+
+    // use that distance to find the actual point inside the sphere
+    float scaledUnitRay[3] = {ray.unitRay[0], ray.unitRay[1], ray.unitRay[2]};
+    v3_scale(scaledUnitRay, tClose);
+    float xClose[3];
+    v3_add(xClose, ray.position, scaledUnitRay);
+
+    float dVec[3];
+    v3_subtract(dVec, xClose, obj->position);
+    float d = v3_length(dVec);
+
+    if (d > r) {
+        return -1.0f;
+    }
+
+    float a = sqrtf(r * r - d * d);
+    float t = tClose - a;
+
+    if (t > 0.0f) {
+        float xHit[3] = {ray.unitRay[0], ray.unitRay[1], ray.unitRay[2]};
+        v3_scale(xHit, tClose - a);
+        v3_add(xHit, ray.position, xHit);
+        hitDest[0] = xHit[0];
+        hitDest[1] = xHit[1];
+        hitDest[2] = xHit[2];
+    }
+
+    return t;
 }
 
-void writePixArray(int *pixArray){
-    // Write the pix array data to P3 file.
-}
-
-int *raycastSphere(sphere *sphere){
-    //Cast a ray to a sphere.
-
-}
-
-float findPlaneIntersection(Ray ray, Object *obj){
+float findPlaneIntersection(Ray ray, Object *obj, float *hitDest){
     float pDiff[3];
     v3_subtract(pDiff, ray.position, obj->position);
     float top = v3_dot_product(obj->Plane->normal, pDiff);
     float bottom = v3_dot_product(obj->Plane->normal, ray.unitRay);
-    return top / bottom;
+    float t = top / bottom;
+
+    if (t > 0.0f) {
+        float xHit[3] = {ray.unitRay[0], ray.unitRay[1], ray.unitRay[2]};
+        v3_scale(xHit, t);
+        v3_add(xHit, ray.position, xHit);
+        hitDest[0] = xHit[0];
+        hitDest[1] = xHit[1];
+        hitDest[2] = xHit[2];
+    }
+    return t;
 }
 
 typedef struct {
@@ -244,11 +278,11 @@ RayResult shoot(Scene scene, Ray ray) {
 
         // call appropriate function to cast ray.
         float distance;
+        float hit[3];
         if (obj->flag == 0) {
-            // TODO spheres
-            continue;
+            distance = findSphereIntersection(ray, obj, hit);
         } else if (obj->flag == 1) {
-            distance = findPlaneIntersection(ray, obj);
+            distance = findPlaneIntersection(ray, obj, hit);
         } else {
             continue;
         }
@@ -289,7 +323,7 @@ Image *render(Scene scene, int imageWidth, int imageHeight) {
             float *color = (float[3]) {0.0f, 0.0f, 0.0f};
             // only set the color if we hit a valid object
             if (result.valid) {
-                printf("found obj = %f %d\n", result.distance, result.hitObject->flag);
+                // printf("found obj = %f %d\n", result.distance, result.hitObject->flag);
                 color = result.hitObject->color;
             }
             // store color in image
