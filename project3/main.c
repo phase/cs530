@@ -249,7 +249,35 @@ Scene readFile(char *filename){
  * http://skuld.bmsc.washington.edu/people/merritt/graphics/quadrics.html
  */
 float findQuadricIntersection(Ray ray, Object *obj, float *hitDest) {
-    return -1.0f; // TODO
+    float t = 0.0f, t0 = 0.0f, t1 = 0.0f, temp = 0.0f;
+    float Aq = obj->quadric->a * powf(ray.unitRay[0], 2) + obj->quadric->b * powf(ray.unitRay[1], 2) + obj->quadric->c * powf(ray.unitRay[2], 2) +
+    obj->quadric->d * ray.unitRay[0] * ray.unitRay[1] + obj->quadric->e * ray.unitRay[0] * ray.unitRay[2] + obj->quadric->f * ray.unitRay[1] * ray.unitRay[2];
+    float Bq = 2 * obj->quadric->a * ray.position[0] * ray.unitRay[0] + 2 * obj->quadric->b * ray.position[1] * ray.unitRay[1] + 
+    2 * obj->quadric->c * ray.position[2] * ray.unitRay[2] + obj->quadric->d * (ray.position[0] * ray.unitRay[1] + ray.position[1] * ray.unitRay[0]) + 
+    obj->quadric->e * (ray.position[0] * ray.unitRay[2] + ray.position[2] * ray.unitRay[0]) + obj->quadric->f * (ray.position[1] * ray.unitRay[2] + ray.position[2] * ray.unitRay[1]) +
+    obj->quadric->g * ray.unitRay[0] + obj->quadric->h * ray.unitRay[1] + obj->quadric->i * ray.unitRay[2];
+    float Cq = obj->quadric->a * powf(ray.position[0], 2) + obj->quadric->b * powf(ray.position[1], 2) + obj->quadric->c * powf(ray.position[2], 1) + 
+    obj->quadric->d * ray.position[0] * ray.position[1] + obj->quadric->e * ray.position[0] * ray.position[2] + obj->quadric->f * ray.position[1] * ray.position[2] +
+    obj->quadric->g * ray.position[0] + obj->quadric->h * ray.position[1] + obj->quadric->i * ray.position[2] + obj->quadric->j;
+    float discrim = powf(Bq, 2) - 4 * Aq * Cq;
+    if(Aq == 0.0f){
+        t = -(Cq/Bq); 
+    }
+    else if(discrim < 0.0f){
+        t = 0.0f;
+    }
+    else{
+        discrim = powf(discrim, 0.5);
+        t0 = (-(Bq - discrim)/(2 * Aq));
+        if(t0 >= 0){
+            t = t0;
+        } 
+        else{
+            t1 = (-(Bq + discrim)/(2 * Aq));
+            t = t1;
+        }
+    }
+    return t; // TODO
 }
 
 /**
@@ -380,7 +408,7 @@ RayResult shoot(Scene scene, Ray ray) {
         } else if (obj->flag == 1) {
             distance = findPlaneIntersection(ray, obj, hit);
         } else if (obj->flag == 2) {
-            distance = findQuadricIntersection(ray, obj, hit);
+            //distance = findQuadricIntersection(ray, obj, hit);
         } else {
             continue;
         }
