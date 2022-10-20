@@ -17,12 +17,21 @@ typedef struct{
     float normal[3];
 } plane;
 
+typedef struct {
+    float a, b, c, d, e, f, g, h, i, j;
+} Quadric;
+
 typedef struct{
-    int flag; //if flag = 0 then it is a sphere, flag = 1 then it is a plane.
+    // flag == 0 ==> sphere
+    // flag == 1 ==> plane
+    // flag == 2 ==> quadric
+    int flag;
     float color[3];
     float position[3];
+    // todo: turn this into a union
     sphere *Sphere;
     plane *Plane;
+    Quadric *quadric;
 } Object;
 
 typedef struct{
@@ -83,7 +92,6 @@ Scene readFile(char *filename){
                         str = malloc(sizeof(char) * 8);
                         fh = extractData(fh, &ch, str);
                         if(strlen(str) > 0){
-                            printf("%s\n", str);
                             obj->color[count] = atof(str);
                             count++;
                         }
@@ -98,7 +106,6 @@ Scene readFile(char *filename){
                         str = malloc(sizeof(char) * 8);
                         fh = extractData(fh, &ch, str);
                         if(strlen(str) > 0){
-                            printf("%s\n", str);
                             obj->position[count] = atof(str);
                             count++;
                         }
@@ -110,7 +117,6 @@ Scene readFile(char *filename){
                 else if (strcmp(str, "radius") == 0){
                     fgetc(fh);
                     fh = extractData(fh, &ch, str);
-                    printf("%s\n", str);
                     obj->Sphere->radius = atof(str);
                 }
 
@@ -133,7 +139,6 @@ Scene readFile(char *filename){
                         str = malloc(sizeof(char) * 8);
                         fh = extractData(fh, &ch, str);
                         if(strlen(str) > 0){
-                            printf("%s\n", str);
                             obj->color[count] = atof(str);
                             count++;
                         }
@@ -148,7 +153,6 @@ Scene readFile(char *filename){
                         str = malloc(sizeof(char) * 8);
                         fh = extractData(fh, &ch, str);
                         if(strlen(str) > 0){
-                            printf("%s\n", str);
                             obj->position[count] = atof(str);
                             count++;
                         }
@@ -163,7 +167,6 @@ Scene readFile(char *filename){
                         str = malloc(sizeof(char) * 8);
                         fh = extractData(fh, &ch, str);
                         if(strlen(str) > 0){
-                            printf("%s\n", str);
                             obj->Plane->normal[count] = atof(str);
                             count++;
                         }
@@ -173,6 +176,39 @@ Scene readFile(char *filename){
                     }
                 }
 
+            }
+            size++;
+        }
+        // parse camera properties
+        if (strcmp(str, "quadric") == 0) {
+            // allocate a new object
+            Object *obj = malloc(sizeof(Object));
+            objects[size] = obj;
+
+            obj->flag = 2;
+            obj->quadric = malloc(sizeof(Quadric));
+
+            while (ch != '\n' && ch != EOF) {
+                char item[20];
+                extractData(fh, &ch, item);
+                if (strcmp(item, "color") == 0) {
+                    fgetc(fh); // skip space
+                    fscanf(fh, "[%f, %f, %f], ", &obj->color[0], &obj->color[1], &obj->color[2]);
+                } else if (strcmp(item, "constants") == 0) {
+                    char buffer[20];
+                    fscanf(fh, " [%f, %f, %f, %f, %f, %f, %f, %f, %f, %f]",
+                           &obj->quadric->a,
+                           &obj->quadric->b,
+                           &obj->quadric->c,
+                           &obj->quadric->d,
+                           &obj->quadric->e,
+                           &obj->quadric->f,
+                           &obj->quadric->g,
+                           &obj->quadric->h,
+                           &obj->quadric->i,
+                           &obj->quadric->j
+                   );
+                }
             }
             size++;
         }
@@ -199,15 +235,21 @@ Scene readFile(char *filename){
             }
         }
     }
-    printf("\nSphere - Radius: %d, Color: [%f, %f, %f], Position: [%f, %f, %f]", objects[0]->Sphere->radius, objects[0]->color[0], objects[0]->color[1], objects[0]->color[2], objects[0]->position[0], objects[0]->position[1], objects[0]->position[2]);
-    printf("\nPlane - Normal: [%f, %f, %f], Color: [%f, %f, %f], Position: [%f, %f, %f]", objects[1]->Plane->normal[0], objects[1]->Plane->normal[1], objects[1]->Plane->normal[2], objects[1]->color[0], objects[1]->color[1], objects[1]->color[2], objects[1]->position[0], objects[1]->position[1], objects[1]->position[2]);
-    printf("\nCamera width: %f, height: %f\n", width, height);
+
     return (Scene){
         .width = width,
         .height = height,
         .objects = objects,
         .size = size + 1
     };
+}
+
+/**
+ * This is using the method described at
+ * http://skuld.bmsc.washington.edu/people/merritt/graphics/quadrics.html
+ */
+float findQuadricIntersection(Ray ray, Object *obj, float *hitDest) {
+    return -1.0f; // TODO
 }
 
 /**
@@ -337,6 +379,8 @@ RayResult shoot(Scene scene, Ray ray) {
             distance = findSphereIntersection(ray, obj, hit);
         } else if (obj->flag == 1) {
             distance = findPlaneIntersection(ray, obj, hit);
+        } else if (obj->flag == 2) {
+            distance = findQuadricIntersection(ray, obj, hit);
         } else {
             continue;
         }
@@ -396,6 +440,29 @@ int main(int argc, char *argv[]) {
         printf("Usage: ./raycast <scene> <output_image>\n");
     }
     Scene scene = readFile(argv[1]);
+
+    // TODO remove debug
+    for (int i = 0; i < scene.size; i++) {
+        Object* obj = scene.objects[i];
+        if (obj == NULL) { continue; }
+        printf(" found object %d\n", obj->flag);
+        if (obj->flag == 2) {
+            // this is a quadric
+            printf("  found quadric: [%f, %f, %f, %f, %f, %f, %f, %f, %f, %f]\n",
+                   obj->quadric->a,
+                   obj->quadric->b,
+                   obj->quadric->c,
+                   obj->quadric->d,
+                   obj->quadric->e,
+                   obj->quadric->f,
+                   obj->quadric->g,
+                   obj->quadric->h,
+                   obj->quadric->i,
+                   obj->quadric->j
+            );
+        }
+    }
+
     Image *image = render(scene, 256, 256);
     writeP3(image, argv[2]);
     return 0;
