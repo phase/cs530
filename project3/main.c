@@ -240,7 +240,7 @@ Scene readFile(char *filename){
         .width = width,
         .height = height,
         .objects = objects,
-        .size = size + 1
+        .size = size
     };
 }
 
@@ -408,13 +408,11 @@ Image *render(Scene scene, int imageWidth, int imageHeight) {
         for (int j = 0; j < imageWidth; j++) { // for each column
             float px = center[0] - scene.width / 2.0f + pixelWidth * ((float) j + 0.5f); // x coord of column
             float pz = center[2];
-
             // build ray to cast
             float unitRay[3]; // unit ray vector
-            float p[3] = (float[3]) {px, py, pz};
+            float p[3] = {px, py, pz};
             v3_normalize(unitRay, p);
             Ray ray = {.position = p, .unitRay = unitRay};
-
             // cast ray
             RayResult result = shoot(scene, ray);
             // start with black
@@ -439,7 +437,7 @@ int main(int argc, char *argv[]) {
     if (argc != 3) {
         printf("Usage: ./raycast <scene> <output_image>\n");
     }
-    Scene scene = readFile(argv[1]);
+    Scene scene = readFile(argv[3]);
 
     // TODO remove debug
     for (int i = 0; i < scene.size; i++) {
@@ -463,7 +461,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    Image *image = render(scene, 256, 256);
-    writeP3(image, argv[2]);
+    Image *image = render(scene, atoi(argv[1]), atoi(argv[2]));
+    writeP3(image, argv[4]);
     return 0;
 }
