@@ -355,7 +355,7 @@ Image *render(Scene scene, int imageWidth, int imageHeight) {
     float pixelHeight = scene.height / (float) imageHeight;
 
     // specified by the instruction document
-    float center[3] = {0.0f, 0.0f, 0.0f};
+    float center[3] = {0.0f, 0.0f, -1.0f};
 
     Image *image = newImage(imageWidth, imageHeight, 255);
 
@@ -396,7 +396,7 @@ int main(int argc, char *argv[]) {
         printf("Usage: ./raycast <scene> <output_image>\n");
     }
     Scene scene = readFile(argv[1]);
-    Image *image = render(scene, 100, 100);
+    Image *image = render(scene, 256, 256);
     writeP3(image, argv[2]);
     return 0;
 }
