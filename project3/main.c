@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <math.h>
+#include <float.h>
 #include "v3math.h"
 #include "ppm.h"
 
@@ -209,7 +210,60 @@ Scene readFile(char *filename){
     };
 }
 
-float findSphereIntersection(Ray ray, Object *obj, float *hitDest){
+/**
+ * This is using the method described at
+ * https://education.siggraph.org/static/HyperGraph/raytrace/rtinter1.htm
+ */
+float findSphereIntersection(Ray ray, Object *obj, float *hitDest) {
+    //A = Xd^2 + Yd^2 + Zd^2
+    //B = 2 * ((Xd * (X0 - Xc)) + (Yd * (Y0 - Yc)) + (Zd * (Z0 - Zc)))
+    //C = (X0 - Xc)^2 + (Y0 - Yc)^2 + (Z0 - Zc)^2 - Sr^2
+    float r = (float) obj->Sphere->radius;
+    float a = powf(ray.unitRay[0], 2) + powf(ray.unitRay[1], 2) + powf(ray.unitRay[2], 2);
+    float b = 2 * ((ray.unitRay[0] * (ray.position[0] - obj->position[0])) +
+            (ray.unitRay[1] * (ray.position[1] - obj->position[1])) +
+            (ray.unitRay[2] * (ray.position[2] - obj->position[2])));
+    float c = powf(ray.position[0] - obj->position[0], 2) +
+            powf(ray.position[1] - obj->position[1], 2) +
+            powf(ray.position[2] - obj->position[2], 2) -
+            powf(r, 2);
+
+    // t0, t1 = (- B + (B^2 - 4*C)^1/2) / 2 where t0 is for (-) and t1 is for (+)
+    float d = powf(b, 2) - 4*c;
+    if (d < 0.0f) {
+        // there is no solution
+        return -1.0f;
+    }
+
+    /*
+     t0, t1 = (- B + (B^2 - 4*C)^1/2) / 2 where t0 is for (-) and t1 is for (+)
+     If the discriminant is < 0.0 then there is no real root and no intersection.
+     If there is a real root (Disc. > = 0.0) then the smaller positive root is the
+     closest intersection point. So we can just compute t0 and if it is positive,
+     then we are done, else compute t1.
+     */
+
+    float t0 = (-b - sqrtf(d)) / 2;
+    float t = t0;
+    if (t < 0.0f) {
+        float t1 = (-b + sqrtf(d)) / 2;
+        t = t1;
+    }
+
+    // Ri = [xi, yi, zi] = [x0 + xd * ti ,  y0 + yd * ti,  z0 + zd * ti]
+    float rx = ray.position[0] + ray.unitRay[0] * t;
+    float ry = ray.position[1] + ray.unitRay[1] * t;
+    float rz = ray.position[2] + ray.unitRay[2] * t;
+    hitDest[0] = rx;
+    hitDest[1] = ry;
+    hitDest[2] = rz;
+    return fabsf(t);
+}
+
+/**
+ * This is using the method described in the book
+ */
+float findSphereIntersectionOld(Ray ray, Object *obj, float *hitDest){
     float r = (float) obj->Sphere->radius;
     float pDiff[3];
     v3_subtract(pDiff, obj->position, ray.position);
