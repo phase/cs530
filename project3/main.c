@@ -235,7 +235,7 @@ Scene readFile(char *filename){
             }
         }
     }
-
+    fclose(fh);
     return (Scene){
         .width = width,
         .height = height,
@@ -464,34 +464,15 @@ Image *render(Scene scene, int imageWidth, int imageHeight) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 3) {
-        printf("Usage: ./raycast <scene> <output_image>\n");
+    if (argc != 5) {
+        printf("Usage: ./raycast <width> <height> <scene_file> <output_image>\n");
+        exit(-1);
     }
     Scene scene = readFile(argv[3]);
-
     // TODO remove debug
-    for (int i = 0; i < scene.size; i++) {
-        Object* obj = scene.objects[i];
-        if (obj == NULL) { continue; }
-        printf(" found object %d\n", obj->flag);
-        if (obj->flag == 2) {
-            // this is a quadric
-            printf("  found quadric: [%f, %f, %f, %f, %f, %f, %f, %f, %f, %f]\n",
-                   obj->quadric->a,
-                   obj->quadric->b,
-                   obj->quadric->c,
-                   obj->quadric->d,
-                   obj->quadric->e,
-                   obj->quadric->f,
-                   obj->quadric->g,
-                   obj->quadric->h,
-                   obj->quadric->i,
-                   obj->quadric->j
-            );
-        }
-    }
-
     Image *image = render(scene, atoi(argv[1]), atoi(argv[2]));
     writeP3(image, argv[4]);
+    free(scene.objects);
+    free(image);
     return 0;
 }
