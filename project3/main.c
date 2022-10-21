@@ -260,20 +260,22 @@ float findQuadricIntersection(Ray ray, Object *obj, float *hitDest) {
     obj->quadric->d * ray.position[0] * ray.position[1] + obj->quadric->e * ray.position[0] * ray.position[2] + obj->quadric->f * ray.position[1] * ray.position[2] +
     obj->quadric->g * ray.position[0] + obj->quadric->h * ray.position[1] + obj->quadric->i * ray.position[2] + obj->quadric->j;
     float discrim = powf(Bq, 2) - 4 * Aq * Cq;
+    //t = -discrim;
+    //printf("\nDiscrim : %f", t);
     if(Aq == 0.0f){
         t = -(Cq/Bq); 
     }
     else if(discrim < 0.0f){
-        t = 0.0f;
+        t = -1.0f;
     }
     else{
         discrim = powf(discrim, 0.5);
-        t0 = (-(Bq - discrim)/(2 * Aq));
-        if(t0 >= 0){
+        t0 = -((Bq + discrim)/(2 * Aq));
+        if(t0 > 0){
             t = t0;
         } 
         else{
-            t1 = (-(Bq + discrim)/(2 * Aq));
+            t1 = -((Bq - discrim)/(2 * Aq));
             t = t1;
         }
     }
@@ -375,7 +377,7 @@ float findPlaneIntersection(Ray ray, Object *obj, float *hitDest){
     v3_subtract(pDiff, ray.position, obj->position);
     float top = v3_dot_product(obj->Plane->normal, pDiff);
     float bottom = v3_dot_product(obj->Plane->normal, ray.unitRay);
-    float t = top / bottom;
+    float t =  (top / bottom);
 
     if (t > 0.0f) {
         float xHit[3] = {ray.unitRay[0], ray.unitRay[1], ray.unitRay[2]};
@@ -408,7 +410,7 @@ RayResult shoot(Scene scene, Ray ray) {
         } else if (obj->flag == 1) {
             distance = findPlaneIntersection(ray, obj, hit);
         } else if (obj->flag == 2) {
-            //distance = findQuadricIntersection(ray, obj, hit);
+            distance = findQuadricIntersection(ray, obj, hit);
         } else {
             continue;
         }
