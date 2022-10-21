@@ -465,11 +465,10 @@ Image *render(Scene scene, int imageWidth, int imageHeight) {
 
 int main(int argc, char *argv[]) {
     if (argc != 5) {
-        printf("Usage: ./raycast <width> <height> <scene_file> <output_image>\n");
-        exit(-1);
+        printf("Usage: ./raycast <width> <height> <scene> <output_image>\n");
+        return -1;
     }
     Scene scene = readFile(argv[3]);
-    // TODO remove debug
     Image *image = render(scene, atoi(argv[1]), atoi(argv[2]));
     writeP3(image, argv[4]);
     free(scene.objects);
