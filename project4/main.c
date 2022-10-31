@@ -40,9 +40,8 @@ typedef struct{
     // flag == 1 ==> plane
     // flag == 2 ==> quadric
     int flag;
-    float color[3];
-//    float diffuse_color[3];
-//    float specular_color[3];
+    float diffuse_color[3];
+    float specular_color[3];
     float position[3];
     // todo: turn this into a union
     sphere *Sphere;
@@ -55,13 +54,26 @@ typedef struct{
     float width;
     float height;
     Object **objects;
-    int size;
+    int objectCount;
+    Light **lights;
+    int lightCount;
 } Scene;
 
 typedef struct {
     float* position;
     float* unitRay;
 } Ray;
+
+void freeScene(Scene scene) {
+    for (int i = 0; i < scene.objectCount; i++) {
+        free(scene.objects[i]);
+    }
+    free(scene.objects);
+    for (int i = 0; i < scene.lightCount; i++) {
+        free(scene.lights[i]);
+    }
+    free(scene.lights);
+}
 
 FILE *extractData(FILE * fh, char *ch, char *str){
     int count = 0;
@@ -85,30 +97,48 @@ Scene readFile(char *filename){
     FILE *fh = fopen(filename, "r");
     char ch = ' ';
     char *str;
-    int size = 0;
-    int count;
+
+    int objectCount = 0;
+    int lightCount = 0;
     Object **objects = malloc(sizeof(Object*) * 128);
+    Light **lights = malloc(sizeof(Light*) * 128);
     float width = -1, height = -1;
+
+    int count;
     while(ch != EOF){
         str = malloc(sizeof(char) * 20);
         fh = extractData(fh, &ch, str);
         if(strcmp(str, "sphere") == 0){
             // allocate a new object
             Object *obj = malloc(sizeof(Object));
-            objects[size] = obj;
+            objects[objectCount] = obj;
 
             obj->flag = 0;
             obj->Sphere = malloc(sizeof(sphere));
             while(ch != '\n' && ch != EOF){
                 str = malloc(sizeof(char) * 20);
                 fh = extractData(fh, &ch, str);
-                if(strcmp(str, "color") == 0){
+                if(strcmp(str, "diffuse_color") == 0){
                     count = 0;
                     while (true){
                         str = malloc(sizeof(char) * 8);
                         fh = extractData(fh, &ch, str);
                         if(strlen(str) > 0){
-                            obj->color[count] = atof(str);
+                            obj->diffuse_color[count] = atof(str);
+                            count++;
+                        }
+                        if(count == 3){
+                            break;
+                        }
+                    }
+                }
+                else if(strcmp(str, "specular_color") == 0){
+                    count = 0;
+                    while (true){
+                        str = malloc(sizeof(char) * 8);
+                        fh = extractData(fh, &ch, str);
+                        if(strlen(str) > 0){
+                            obj->specular_color[count] = atof(str);
                             count++;
                         }
                         if(count == 3){
@@ -137,25 +167,39 @@ Scene readFile(char *filename){
                 }
 
             }
-            size++;
+            objectCount++;
         }
         if(strcmp(str, "plane") == 0){
             // allocate a new object
             Object *obj = malloc(sizeof(Object));
-            objects[size] = obj;
+            objects[objectCount] = obj;
 
             obj->flag = 1;
             obj->Plane = malloc(sizeof(plane));
             while(ch != '\n' && ch != EOF){
                 str = malloc(sizeof(char) * 20);
                 fh = extractData(fh, &ch, str);
-                if(strcmp(str, "color") == 0){
+                if(strcmp(str, "diffuse_color") == 0){
                     count = 0;
                     while (true){
                         str = malloc(sizeof(char) * 8);
                         fh = extractData(fh, &ch, str);
                         if(strlen(str) > 0){
-                            obj->color[count] = atof(str);
+                            obj->diffuse_color[count] = atof(str);
+                            count++;
+                        }
+                        if(count == 3){
+                            break;
+                        }
+                    }
+                }
+                else if(strcmp(str, "specular_color") == 0){
+                    count = 0;
+                    while (true){
+                        str = malloc(sizeof(char) * 8);
+                        fh = extractData(fh, &ch, str);
+                        if(strlen(str) > 0){
+                            obj->specular_color[count] = atof(str);
                             count++;
                         }
                         if(count == 3){
@@ -193,13 +237,13 @@ Scene readFile(char *filename){
                 }
 
             }
-            size++;
+            objectCount++;
         }
-        // parse camera properties
+        // parse quadrics
         if (strcmp(str, "quadric") == 0) {
             // allocate a new object
             Object *obj = malloc(sizeof(Object));
-            objects[size] = obj;
+            objects[objectCount++] = obj;
 
             obj->flag = 2;
             obj->quadric = malloc(sizeof(Quadric));
@@ -207,9 +251,12 @@ Scene readFile(char *filename){
             while (ch != '\n' && ch != EOF) {
                 char item[20];
                 extractData(fh, &ch, item);
-                if (strcmp(item, "color") == 0) {
+                if (strcmp(item, "diffuse_color") == 0) {
                     fgetc(fh); // skip space
-                    fscanf(fh, "[%f, %f, %f], ", &obj->color[0], &obj->color[1], &obj->color[2]);
+                    fscanf(fh, "[%f, %f, %f], ", &obj->diffuse_color[0], &obj->diffuse_color[1], &obj->diffuse_color[2]);
+                } else if (strcmp(item, "specular_color") == 0) {
+                    fgetc(fh); // skip space
+                    fscanf(fh, "[%f, %f, %f], ", &obj->specular_color[0], &obj->specular_color[1], &obj->specular_color[2]);
                 } else if (strcmp(item, "constants") == 0) {
                     char buffer[20];
                     fscanf(fh, " [%f, %f, %f, %f, %f, %f, %f, %f, %f, %f]",
@@ -226,10 +273,46 @@ Scene readFile(char *filename){
                    );
                 }
             }
-            size++;
+        }
+        // parse light
+        else if (strcmp(str, "light") == 0) {
+            Light *light = malloc(sizeof(Light));
+            lights[lightCount++] = light;
+
+            int j = 0;
+            while (ch != '\n' && ch != EOF && j++ < 10) {
+                char item[20];
+                fscanf(fh, "%s ", item);
+                if (strcmp(item, "position:") == 0) {
+                    fscanf(fh, "[%f, %f, %f]", &light->position[0], &light->position[1], &light->position[2]);
+                } else if (strcmp(item, "color:") == 0) {
+                    fscanf(fh, "[%f, %f, %f]", &light->color[0], &light->color[1], &light->color[2]);
+                } else if (strcmp(item, "radial-a0:") == 0) {
+                    fscanf(fh, "%f", &light->radialA0);
+                } else if (strcmp(item, "radial-a1:") == 0) {
+                    fscanf(fh, "%f", &light->radialA1);
+                } else if (strcmp(item, "radial-a2:") == 0) {
+                    fscanf(fh, "%f", &light->radialA2);
+                } else if (strcmp(item, "theta:") == 0) {
+                    fscanf(fh, "%f", &light->theta);
+                } else if (strcmp(item, "angular-a0:") == 0) {
+                    fscanf(fh, "%f", &light->angularA0);
+                } else if (strcmp(item, "direction:") == 0) {
+                    fscanf(fh, "[%f, %f, %f]", &light->direction[0], &light->direction[1], &light->direction[2]);
+                }
+
+                char c = fgetc(fh);
+                if (c == ',') {
+                    fgetc(fh); // skip space
+                } else {
+                    ungetc(c, fh);
+                    // we have reached the end of the line
+                    break;
+                }
+            }
         }
         // parse camera properties
-        if (strcmp(str, "camera") == 0) {
+        else if (strcmp(str, "camera") == 0) {
             while (ch != '\n' && ch != EOF) {
                 char item[20];
                 extractData(fh, &ch, item);
@@ -256,7 +339,9 @@ Scene readFile(char *filename){
         .width = width,
         .height = height,
         .objects = objects,
-        .size = size
+        .objectCount = objectCount,
+        .lights = lights,
+        .lightCount = lightCount
     };
 }
 
@@ -414,7 +499,7 @@ typedef struct {
 
 RayResult shoot(Scene scene, Ray ray) {
     RayResult result = {false, NULL, INFINITY};
-    for (int m = 0; m < scene.size; m++) {
+    for (int m = 0; m < scene.objectCount; m++) {
         Object *obj = scene.objects[m];
         if (obj == NULL) { continue; }
 
@@ -466,7 +551,7 @@ Image *render(Scene scene, int imageWidth, int imageHeight) {
             // only set the color if we hit a valid object
             if (result.valid) {
                 // printf("found obj = %f %d\n", result.distance, result.hitObject->flag);
-                color = result.hitObject->color;
+                color = result.hitObject->diffuse_color;
             }
             // store color in image
             // convert 0.0 - 1.0 color to 0 - 255
@@ -487,7 +572,7 @@ int main(int argc, char *argv[]) {
     Scene scene = readFile(argv[3]);
     Image *image = render(scene, atoi(argv[1]), atoi(argv[2]));
     writeP3(image, argv[4]);
-    free(scene.objects);
-    free(image);
+    freeScene(scene);
+    freeImage(image);
     return 0;
 }
