@@ -63,7 +63,7 @@ void v3_reflect(float *dst, float *v, float *n) { // Function to find the reflec
 }
 
 float v3_length(float *a) { // Function to find the length of a vector.
-    return sqrt(pow(a[0], 2) + pow(a[1], 2) + pow(a[2], 2));
+    return sqrtf(powf(a[0], 2) + powf(a[1], 2) + powf(a[2], 2));
 }
 
 void v3_normalize(float *dst, float *a) { // Function to normalize a vector. 
