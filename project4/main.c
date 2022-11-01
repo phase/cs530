@@ -495,10 +495,11 @@ typedef struct {
     bool valid;
     Object *hitObject;
     float distance;
+    float hitPos[3];
 } RayResult;
 
 RayResult shoot(Scene scene, Ray ray) {
-    RayResult result = {false, NULL, INFINITY};
+    RayResult result = {false, NULL, INFINITY, {0, 0, 0}};
     for (int m = 0; m < scene.objectCount; m++) {
         Object *obj = scene.objects[m];
         if (obj == NULL) { continue; }
@@ -519,9 +520,36 @@ RayResult shoot(Scene scene, Ray ray) {
             result.valid = true;
             result.hitObject = obj;
             result.distance = distance;
+            result.hitPos[0] = hit[0];
+            result.hitPos[1] = hit[1];
+            result.hitPos[2] = hit[2];
         }
     }
     return result;
+}
+
+void shade(Scene scene, RayResult result, float *outputColor) {
+    float *color = result.hitObject->diffuse_color;
+
+    for (int i = 0; i < scene.lightCount; i++) {
+        Light *light = scene.lights[i];
+
+        // Radial Attenuation
+        float L[3];
+        v3_subtract(L, result.hitPos, light->position);
+        float d = v3_length(L);
+        float radialAttenuation = 1.0f / (light->radialA0 + light->radialA1 * d + light->radialA2 * d * d);
+
+        // Angular Attenuation
+        // TODO cone lights
+        float angularAttenuation = 1.0f;
+
+
+    }
+
+    outputColor[0] = color[0];
+    outputColor[1] = color[1];
+    outputColor[2] = color[2];
 }
 
 Image *render(Scene scene, int imageWidth, int imageHeight) {
@@ -550,8 +578,7 @@ Image *render(Scene scene, int imageWidth, int imageHeight) {
             float *color = (float[3]) {0.0f, 0.0f, 0.0f};
             // only set the color if we hit a valid object
             if (result.valid) {
-                // printf("found obj = %f %d\n", result.distance, result.hitObject->flag);
-                color = result.hitObject->diffuse_color;
+                shade(scene, result, color);
             }
             // store color in image
             // convert 0.0 - 1.0 color to 0 - 255
