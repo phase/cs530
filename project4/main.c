@@ -531,6 +531,18 @@ RayResult shoot(Scene scene, Ray ray) {
 void shade(Scene scene, RayResult result, float *outputColor) {
     float *color = result.hitObject->diffuse_color;
 
+    float n[3]; // surface normal
+    if (result.hitObject->flag == 1) {
+        // plane
+        n[0] = result.hitObject->Plane->normal[0];
+        n[1] = result.hitObject->Plane->normal[1];
+        n[2] = result.hitObject->Plane->normal[2];
+    } else if (result.hitObject->flag == 0) {
+        // sphere
+        v3_subtract(n, result.hitPos, result.hitObject->position);
+        v3_normalize(n, n);
+    }
+
     for (int i = 0; i < scene.lightCount; i++) {
         Light *light = scene.lights[i];
 
@@ -544,7 +556,10 @@ void shade(Scene scene, RayResult result, float *outputColor) {
         // TODO cone lights
         float angularAttenuation = 1.0f;
 
-
+        float x = -v3_dot_product(L, n);
+        color[0] *= x;
+        color[1] *= x;
+        color[2] *= x;
     }
 
     outputColor[0] = color[0];
