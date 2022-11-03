@@ -351,6 +351,7 @@ Scene readFile(char *filename){
  */
 float findQuadricIntersection(Ray ray, Object *obj, float *hitDest) {
     float t = 0.0f, t0 = 0.0f, t1 = 0.0f, temp = 0.0f;
+    float rx, ry, rz; 
     float Aq = obj->quadric->a * powf(ray.unitRay[0], 2) + obj->quadric->b * powf(ray.unitRay[1], 2) + obj->quadric->c * powf(ray.unitRay[2], 2) +
     obj->quadric->d * ray.unitRay[0] * ray.unitRay[1] + obj->quadric->e * ray.unitRay[0] * ray.unitRay[2] + obj->quadric->f * ray.unitRay[1] * ray.unitRay[2];
     float Bq = 2 * obj->quadric->a * ray.position[0] * ray.unitRay[0] + 2 * obj->quadric->b * ray.position[1] * ray.unitRay[1] + 
@@ -380,6 +381,9 @@ float findQuadricIntersection(Ray ray, Object *obj, float *hitDest) {
             t = t1;
         }
     }
+    hitDest[0] = ray.position[0] + ray.unitRay[0] * t;
+    hitDest[1] = ray.position[1] + ray.unitRay[1] * t;
+    hitDest[2] = ray.position[2] + ray.unitRay[2] * t;
     return t; // TODO
 }
 
