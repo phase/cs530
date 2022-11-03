@@ -7,9 +7,9 @@
 #include <stdio.h>
 
 void v3_from_points(float *dst, float *a, float *b) { // Function to find vector from 2 points.
-    dst[0] = a[0] - b[0];
-    dst[1] = a[1] - b[1];
-    dst[2] = a[2] - b[2];
+    dst[0] = b[0] - a[0];
+    dst[1] = b[1] - a[1];
+    dst[2] = b[2] - a[2];
 }
 
 void v3_add(float *dst, float *a, float *b) { // Function to add two vectors.

@@ -528,9 +528,9 @@ RayResult shoot(Scene scene, Ray ray) {
     return result;
 }
 
-void shade(Scene scene, RayResult result, float *outputColor) {
-    float *color = result.hitObject->diffuse_color;
-
+void shade(Scene scene, Ray ray, RayResult result, float *outputColor) {
+    //float *color = result.hitObject->diffuse_color;
+    float color[3] ={0.0f, 0.0f, 0.0f};
     float n[3]; // surface normal
     if (result.hitObject->flag == 1) {
         // plane
@@ -539,27 +539,71 @@ void shade(Scene scene, RayResult result, float *outputColor) {
         n[2] = result.hitObject->Plane->normal[2];
     } else if (result.hitObject->flag == 0) {
         // sphere
-        v3_subtract(n, result.hitPos, result.hitObject->position);
+        v3_subtract(n, result.hitObject->position, result.hitPos);
         v3_normalize(n, n);
     }
-
     for (int i = 0; i < scene.lightCount; i++) {
         Light *light = scene.lights[i];
-
+        //printf("Light radials: %f %f %f\n", light->radialA0, light->radialA1, light->radialA2);
         // Radial Attenuation
         float L[3];
-        v3_subtract(L, result.hitPos, light->position);
+        v3_subtract(L, light->position, result.hitPos);
+        //printf("Here\n");
+        //printf("L: %f, %f, %f\n", L[0], L[1], L[2]);
         float d = v3_length(L);
         float radialAttenuation = 1.0f / (light->radialA0 + light->radialA1 * d + light->radialA2 * d * d);
-
+        v3_normalize(L, L);
+        float v0[3], vl[3];
+        v0[0] = L[0];
+        v0[1] = L[1];
+        v0[2] = L[2];
+        v3_scale(v0, -1.0f);
+        v3_from_points(vl, light->position, result.hitPos);
         // Angular Attenuation
         // TODO cone lights
         float angularAttenuation = 1.0f;
-
-        float x = -v3_dot_product(L, n);
-        color[0] *= x;
-        color[1] *= x;
-        color[2] *= x;
+        if(light->theta > 0){
+            float cosalpha = v3_dot_product(v0, vl);
+            if(cosalpha < acos(light->theta)){
+                angularAttenuation = 0.0f;
+            }
+            else{
+                angularAttenuation = powf(cosalpha, light->angularA0);
+            }
+        }
+        float x = v3_dot_product(n, L);
+        float diffuse[3];
+        float specular[3];
+        diffuse[0] = light->color[0] * result.hitObject->diffuse_color[0];
+        diffuse[1] = light->color[1] * result.hitObject->diffuse_color[1];
+        diffuse[2] = light->color[2] * result.hitObject->diffuse_color[2];
+        //v3_scale(diffuse, radialAttenuation);
+        v3_scale(diffuse, x);
+        float view[3];
+        float reflection[3];
+        view[0] = ray.unitRay[0];
+        view[1] = ray.unitRay[1];
+        view[2] = ray.unitRay[2];
+        v3_scale(view, -1.0f);
+        reflection[0] = n[0];
+        reflection[1] = n[1];
+        reflection[2] = n[2];
+        v3_scale(reflection, 2.0f * x);
+        v3_subtract(reflection, L, reflection);
+        float y = powf(v3_dot_product(reflection, view), 20);
+        specular[0] = light->color[0] * result.hitObject->specular_color[0];
+        specular[1] = light->color[1] * result.hitObject->specular_color[1];
+        specular[2] = light->color[2] * result.hitObject->specular_color[2];
+        v3_scale(specular, y);
+        float I[3];
+        I[0] = diffuse[0] + specular[0];
+        I[1] = diffuse[1] + specular[1];
+        I[2] = diffuse[2] + specular[2];
+        v3_scale(I, radialAttenuation * angularAttenuation);
+        //float x = -v3_dot_product(L, n);
+        color[0] += I[0];
+        color[1] += I[1];
+        color[2] += I[2];
     }
 
     outputColor[0] = color[0];
@@ -593,7 +637,7 @@ Image *render(Scene scene, int imageWidth, int imageHeight) {
             float *color = (float[3]) {0.0f, 0.0f, 0.0f};
             // only set the color if we hit a valid object
             if (result.valid) {
-                shade(scene, result, color);
+                shade(scene, ray, result, color);
             }
             // store color in image
             // convert 0.0 - 1.0 color to 0 - 255
