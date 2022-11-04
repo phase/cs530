@@ -543,8 +543,9 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor) {
         n[2] = result.hitObject->Plane->normal[2];
     } else if (result.hitObject->flag == 0) {
         // sphere
-        v3_subtract(n, result.hitObject->position, result.hitPos);
+        v3_subtract(n, result.hitPos, result.hitObject->position);
         v3_normalize(n, n);
+       // v3_scale(n, 1.0f / result.hitObject->Sphere->radius);
     }
     for (int i = 0; i < scene.lightCount; i++) {
         Light *light = scene.lights[i];
@@ -558,31 +559,31 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor) {
         float radialAttenuation = 1.0f / (light->radialA0 + light->radialA1 * d + light->radialA2 * d * d);
         v3_normalize(L, L);
         float v0[3], vl[3];
-        v0[0] = L[0];
-        v0[1] = L[1];
-        v0[2] = L[2];
-        v3_scale(v0, -1.0f);
+        v0[0] = -L[0];
+        v0[1] = -L[1];
+        v0[2] = -L[2];
         v3_from_points(vl, light->position, result.hitPos);
         // Angular Attenuation
         // TODO cone lights
         float angularAttenuation = 1.0f;
-        if(light->theta > 0){
+        if (light->theta > 0){
             float cosalpha = v3_dot_product(v0, vl);
-            if(cosalpha < acos(light->theta)){
+            if (cosalpha < acosf(light->theta)) {
                 angularAttenuation = 0.0f;
-            }
-            else{
+            } else {
                 angularAttenuation = powf(cosalpha, light->angularA0);
             }
         }
         float x = v3_dot_product(n, L);
-        float diffuse[3];
-        float specular[3];
-        diffuse[0] = light->color[0] * result.hitObject->diffuse_color[0];
-        diffuse[1] = light->color[1] * result.hitObject->diffuse_color[1];
-        diffuse[2] = light->color[2] * result.hitObject->diffuse_color[2];
+        float diffuse[3] = {0};
+        float specular[3] = {0};
+        if (x > 0.0f) {
+            diffuse[0] = fmax(1.0f, result.hitObject->diffuse_color[0] * light->color[0]);
+            diffuse[1] = fmax(1.0f, result.hitObject->diffuse_color[1] * light->color[1]);
+            diffuse[2] = fmax(1.0f, result.hitObject->diffuse_color[2] * light->color[2]);
+            v3_scale(diffuse, x);
+        }
         //v3_scale(diffuse, radialAttenuation);
-        v3_scale(diffuse, x);
         float view[3];
         float reflection[3];
         view[0] = ray.unitRay[0];
@@ -594,20 +595,22 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor) {
         reflection[2] = n[2];
         v3_scale(reflection, 2.0f * x);
         v3_subtract(reflection, L, reflection);
-        float y = powf(v3_dot_product(reflection, view), 20);
-        specular[0] = light->color[0] * result.hitObject->specular_color[0];
-        specular[1] = light->color[1] * result.hitObject->specular_color[1];
-        specular[2] = light->color[2] * result.hitObject->specular_color[2];
-        v3_scale(specular, y);
+        float b = v3_dot_product(reflection, view);
+        if (x > 0 && b > 0) {
+            float y = powf(b, 20);
+            specular[0] = light->color[0] * result.hitObject->specular_color[0];
+            specular[1] = light->color[1] * result.hitObject->specular_color[1];
+            specular[2] = light->color[2] * result.hitObject->specular_color[2];
+            v3_scale(specular, y);
+        }
         float I[3];
-        I[0] = diffuse[0] + specular[0];
-        I[1] = diffuse[1] + specular[1];
-        I[2] = diffuse[2] + specular[2];
+        v3_add(I, diffuse, specular);
         v3_scale(I, radialAttenuation * angularAttenuation);
+        I[0] = fmin(I[0], 255);
+        I[1] = fmin(I[1], 255);
+        I[2] = fmin(I[2], 255);
         //float x = -v3_dot_product(L, n);
-        color[0] += I[0];
-        color[1] += I[1];
-        color[2] += I[2];
+        v3_add(color, color, I);
     }
 
     outputColor[0] = color[0];
@@ -645,9 +648,9 @@ Image *render(Scene scene, int imageWidth, int imageHeight) {
             }
             // store color in image
             // convert 0.0 - 1.0 color to 0 - 255
-            addChannel(image, (int) floorf(color[0] * 255));
-            addChannel(image, (int) floorf(color[1] * 255));
-            addChannel(image, (int) floorf(color[2] * 255));
+            addChannel(image, (int) fmin(255, floorf(color[0] * 255)));
+            addChannel(image, (int) fmin(255, floorf(color[1] * 255)));
+            addChannel(image, (int) fmin(255, floorf(color[2] * 255)));
             addChannel(image, 255);
         }
     }
