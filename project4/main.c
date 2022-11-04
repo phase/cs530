@@ -591,7 +591,7 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor) {
         view[1] = L[1];
         view[2] = L[2];
         reflection[0] = n[0];
-        reflection[1] = n[1];g
+        reflection[1] = n[1];
         reflection[2] = n[2];
         float nDotRin = v3_dot_product(n, view);
         v3_scale(reflection, 2.0f * nDotRin);

@@ -14,7 +14,7 @@ To build this project, we use a Makefile.
 make
 ```
 
-To run the project use ./raycast or make run
+To run the project use `./raycast` or `make run`
 
 ## Known Issues
 
