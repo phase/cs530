@@ -541,11 +541,12 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor) {
         n[0] = result.hitObject->Plane->normal[0];
         n[1] = result.hitObject->Plane->normal[1];
         n[2] = result.hitObject->Plane->normal[2];
-    } else if (result.hitObject->flag == 0) {
-        // sphere
+    } else if (result.hitObject->flag == 0 || result.hitObject->flag == 2) {
+        // sphere or quadric
         v3_subtract(n, result.hitPos, result.hitObject->position);
         v3_normalize(n, n);
-       // v3_scale(n, 1.0f / result.hitObject->Sphere->radius);
+    } else {
+        return;
     }
     for (int i = 0; i < scene.lightCount; i++) {
         Light *light = scene.lights[i];
