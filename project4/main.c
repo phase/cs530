@@ -587,15 +587,15 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor) {
         //v3_scale(diffuse, radialAttenuation);
         float view[3];
         float reflection[3];
-        view[0] = ray.unitRay[0];
-        view[1] = ray.unitRay[1];
-        view[2] = ray.unitRay[2];
-        v3_scale(view, -1.0f);
+        view[0] = L[0];
+        view[1] = L[1];
+        view[2] = L[2];
         reflection[0] = n[0];
-        reflection[1] = n[1];
+        reflection[1] = n[1];g
         reflection[2] = n[2];
-        v3_scale(reflection, 2.0f * x);
-        v3_subtract(reflection, L, reflection);
+        float nDotRin = v3_dot_product(n, view);
+        v3_scale(reflection, 2.0f * nDotRin);
+        v3_subtract(reflection, reflection, view);
         float b = v3_dot_product(reflection, view);
         if (x > 0 && b > 0) {
             float y = powf(b, 20);
