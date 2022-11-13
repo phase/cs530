@@ -1,5 +1,5 @@
 /**
- * CS 530 - Project 2
+ * CS 530 - Project 5
  * Authors: Jadon Fowler, Harshith Shakelli
  */
 #include "v3math.h"

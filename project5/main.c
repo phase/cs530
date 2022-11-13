@@ -1,3 +1,7 @@
+/**
+ * CS 530 - Project 5
+ * Authors: Jadon Fowler, Harshith Shakelli
+ */
 #include <stdio.h>
 #include <ctype.h>
 #include <stdint.h>
@@ -43,6 +47,9 @@ typedef struct{
     float diffuse_color[3];
     float specular_color[3];
     float position[3];
+    float reflectivity;
+    float refractivity; // only on spheres?
+    float ior; // The index of refraction of the volume. only on spheres?
     // todo: turn this into a union
     sphere *Sphere;
     plane *Plane;
@@ -165,7 +172,30 @@ Scene readFile(char *filename){
                     fh = extractData(fh, &ch, str);
                     obj->Sphere->radius = atof(str);
                 }
-
+                else if (strcmp(str, "reflectivity") == 0) {
+                    char item[20];
+                    fh = extractData(fh, &ch, item);
+                    if (strlen(str) > 0) {
+                        obj->reflectivity = atof(item);
+                        count++;
+                    }
+                }
+                else if (strcmp(str, "refractivity") == 0) {
+                    char item[20];
+                    fh = extractData(fh, &ch, item);
+                    if (strlen(str) > 0) {
+                        obj->refractivity = atof(item);
+                        count++;
+                    }
+                }
+                else if (strcmp(str, "ior") == 0) {
+                    char item[20];
+                    fh = extractData(fh, &ch, item);
+                    if (strlen(str) > 0) {
+                        obj->ior = atof(item);
+                        count++;
+                    }
+                }
             }
             objectCount++;
         }
@@ -235,7 +265,30 @@ Scene readFile(char *filename){
                         }
                     }
                 }
-
+                else if (strcmp(str, "reflectivity") == 0) {
+                    char item[20];
+                    fh = extractData(fh, &ch, item);
+                    if (strlen(str) > 0) {
+                        obj->reflectivity = atof(item);
+                        count++;
+                    }
+                }
+                else if (strcmp(str, "refractivity") == 0) {
+                    char item[20];
+                    fh = extractData(fh, &ch, item);
+                    if (strlen(str) > 0) {
+                        obj->refractivity = atof(item);
+                        count++;
+                    }
+                }
+                else if (strcmp(str, "ior") == 0) {
+                    char item[20];
+                    fh = extractData(fh, &ch, item);
+                    if (strlen(str) > 0) {
+                        obj->ior = atof(item);
+                        count++;
+                    }
+                }
             }
             objectCount++;
         }
@@ -660,7 +713,7 @@ Image *render(Scene scene, int imageWidth, int imageHeight) {
 
 int main(int argc, char *argv[]) {
     if (argc != 5) {
-        printf("Usage: ./raycast <width> <height> <scene> <output_image>\n");
+        printf("Usage: ./raytrace <width> <height> <scene> <output_image>\n");
         return -1;
     }
     Scene scene = readFile(argv[3]);

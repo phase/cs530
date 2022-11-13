@@ -3,4 +3,5 @@ project1/ppmrw
 project*/raycast
 project*/raycast.exe
 project*/raytrace*
+**/.vscode/
 *.exe
