@@ -2,4 +2,5 @@ project2/v3test
 project1/ppmrw
 project*/raycast
 project*/raycast.exe
+project*/raytrace*
 *.exe
