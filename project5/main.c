@@ -173,27 +173,27 @@ Scene readFile(char *filename){
                     obj->Sphere->radius = atof(str);
                 }
                 else if (strcmp(str, "reflectivity") == 0) {
+                    fgetc(fh);
                     char item[20];
                     fh = extractData(fh, &ch, item);
-                    if (strlen(str) > 0) {
+                    if (strlen(item) > 0) {
                         obj->reflectivity = atof(item);
-                        count++;
                     }
                 }
                 else if (strcmp(str, "refractivity") == 0) {
+                    fgetc(fh);
                     char item[20];
                     fh = extractData(fh, &ch, item);
-                    if (strlen(str) > 0) {
+                    if (strlen(item) > 0) {
                         obj->refractivity = atof(item);
-                        count++;
                     }
                 }
                 else if (strcmp(str, "ior") == 0) {
+                    fgetc(fh);
                     char item[20];
                     fh = extractData(fh, &ch, item);
-                    if (strlen(str) > 0) {
+                    if (strlen(item) > 0) {
                         obj->ior = atof(item);
-                        count++;
                     }
                 }
             }
@@ -266,27 +266,27 @@ Scene readFile(char *filename){
                     }
                 }
                 else if (strcmp(str, "reflectivity") == 0) {
+                    fgetc(fh);
                     char item[20];
                     fh = extractData(fh, &ch, item);
-                    if (strlen(str) > 0) {
+                    if (strlen(item) > 0) {
                         obj->reflectivity = atof(item);
-                        count++;
                     }
                 }
                 else if (strcmp(str, "refractivity") == 0) {
+                    fgetc(fh);
                     char item[20];
                     fh = extractData(fh, &ch, item);
-                    if (strlen(str) > 0) {
+                    if (strlen(item) > 0) {
                         obj->refractivity = atof(item);
-                        count++;
                     }
                 }
                 else if (strcmp(str, "ior") == 0) {
+                    fgetc(fh);
                     char item[20];
                     fh = extractData(fh, &ch, item);
-                    if (strlen(str) > 0) {
+                    if (strlen(item) > 0) {
                         obj->ior = atof(item);
-                        count++;
                     }
                 }
             }
@@ -459,7 +459,7 @@ float findSphereIntersection(Ray ray, Object *obj, float *hitDest) {
             powf(r, 2);
 
     // t0, t1 = (- B + (B^2 - 4*C)^1/2) / 2 where t0 is for (-) and t1 is for (+)
-    float d = powf(b, 2) - 4*c;
+    float d = powf(b, 2) - 4*a*c;
     if (d < 0.0f) {
         // there is no solution
         return -1.0f;
@@ -479,6 +479,9 @@ float findSphereIntersection(Ray ray, Object *obj, float *hitDest) {
         float t1 = (-b + sqrtf(d)) / 2;
         t = t1;
     }
+    if (t < 0.0f) {
+        return -1.0f;
+    }
 
     // Ri = [xi, yi, zi] = [x0 + xd * ti ,  y0 + yd * ti,  z0 + zd * ti]
     float rx = ray.position[0] + ray.unitRay[0] * t;
@@ -487,7 +490,7 @@ float findSphereIntersection(Ray ray, Object *obj, float *hitDest) {
     hitDest[0] = rx;
     hitDest[1] = ry;
     hitDest[2] = rz;
-    return fabsf(t);
+    return t;
 }
 
 /**
@@ -555,11 +558,12 @@ typedef struct {
     float hitPos[3];
 } RayResult;
 
-RayResult shoot(Scene scene, Ray ray) {
+// shooter can be null
+RayResult shoot(Scene scene, Ray ray, Object *shooter) {
     RayResult result = {false, NULL, INFINITY, {0, 0, 0}};
     for (int m = 0; m < scene.objectCount; m++) {
         Object *obj = scene.objects[m];
-        if (obj == NULL) { continue; }
+        if (obj == NULL || obj == shooter) { continue; }
 
         // call appropriate function to cast ray.
         float distance;
@@ -585,9 +589,8 @@ RayResult shoot(Scene scene, Ray ray) {
     return result;
 }
 
-void shade(Scene scene, Ray ray, RayResult result, float *outputColor) {
-    //float *color = result.hitObject->diffuse_color;
-    float color[3] ={0.0f, 0.0f, 0.0f};
+void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int reflectionCount) {
+    float color[3] = {0.0f, 0.0f, 0.0f};
     float n[3]; // surface normal
     if (result.hitObject->flag == 1) {
         // plane
@@ -597,10 +600,11 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor) {
     } else if (result.hitObject->flag == 0 || result.hitObject->flag == 2) {
         // sphere or quadric
         v3_subtract(n, result.hitPos, result.hitObject->position);
-        v3_normalize(n, n);
     } else {
         return;
     }
+    v3_normalize(n, n);
+
     for (int i = 0; i < scene.lightCount; i++) {
         Light *light = scene.lights[i];
         //printf("Light radials: %f %f %f\n", light->radialA0, light->radialA1, light->radialA2);
@@ -667,6 +671,26 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor) {
         v3_add(color, color, I);
     }
 
+    // reflection
+    {
+        float view[3] = {-ray.unitRay[0], -ray.unitRay[1], -ray.unitRay[2]};
+        float reflection[3] = {n[0], n[1], n[2]};
+        float nDotRin = v3_dot_product(n, view);
+        v3_scale(reflection, 2.0f * nDotRin);
+        v3_subtract(reflection, reflection, view);
+
+        Ray reflectionRay = {.position = result.hitPos, .unitRay = reflection};
+        RayResult reflectionResult = shoot(scene, reflectionRay, result.hitObject);
+        if (reflectionResult.valid && reflectionCount < 6) {
+            float r = result.hitObject->reflectivity;
+            float reflectedObjectColor[3];
+            shade(scene, reflectionRay, reflectionResult, reflectedObjectColor, reflectionCount + 1);
+            v3_scale(color, (1.0f) - r);
+            v3_scale(reflectedObjectColor, r);
+            v3_add(color, color, reflectedObjectColor);
+        }
+    }
+
     outputColor[0] = color[0];
     outputColor[1] = color[1];
     outputColor[2] = color[2];
@@ -693,12 +717,12 @@ Image *render(Scene scene, int imageWidth, int imageHeight) {
             v3_normalize(unitRay, p);
             Ray ray = {.position = p, .unitRay = unitRay};
             // cast ray
-            RayResult result = shoot(scene, ray);
+            RayResult result = shoot(scene, ray, NULL);
             // start with black
             float *color = (float[3]) {0.0f, 0.0f, 0.0f};
             // only set the color if we hit a valid object
             if (result.valid) {
-                shade(scene, ray, result, color);
+                shade(scene, ray, result, color, 0);
             }
             // store color in image
             // convert 0.0 - 1.0 color to 0 - 255
