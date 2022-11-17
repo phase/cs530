@@ -538,7 +538,7 @@ float findPlaneIntersection(Ray ray, Object *obj, float *hitDest){
     v3_subtract(pDiff, ray.position, obj->position);
     float top = v3_dot_product(obj->Plane->normal, pDiff);
     float bottom = v3_dot_product(obj->Plane->normal, ray.unitRay);
-    float t =  (top / bottom);
+    float t =  -(top / bottom);
 
     if (t > 0.0f) {
         float xHit[3] = {ray.unitRay[0], ray.unitRay[1], ray.unitRay[2]};
@@ -590,7 +590,8 @@ RayResult shoot(Scene scene, Ray ray, Object *shooter) {
 }
 
 void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int reflectionCount) {
-    float color[3] = {0.0f, 0.0f, 0.0f};
+ //float *color = result.hitObject->diffuse_color;
+    float color[3] ={0.0f, 0.0f, 0.0f};
     float n[3]; // surface normal
     if (result.hitObject->flag == 1) {
         // plane
@@ -598,13 +599,10 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int refle
         n[1] = result.hitObject->Plane->normal[1];
         n[2] = result.hitObject->Plane->normal[2];
     } else if (result.hitObject->flag == 0 || result.hitObject->flag == 2) {
-        // sphere or quadric
+        // sphere
         v3_subtract(n, result.hitPos, result.hitObject->position);
-    } else {
-        return;
+        v3_normalize(n, n);
     }
-    v3_normalize(n, n);
-
     for (int i = 0; i < scene.lightCount; i++) {
         Light *light = scene.lights[i];
         //printf("Light radials: %f %f %f\n", light->radialA0, light->radialA1, light->radialA2);
@@ -617,58 +615,56 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int refle
         float radialAttenuation = 1.0f / (light->radialA0 + light->radialA1 * d + light->radialA2 * d * d);
         v3_normalize(L, L);
         float v0[3], vl[3];
-        v0[0] = -L[0];
-        v0[1] = -L[1];
-        v0[2] = -L[2];
-        v3_from_points(vl, light->position, result.hitPos);
+        v0[0] = L[0];
+        v0[1] = L[1];
+        v0[2] = L[2];
+        v3_scale(v0, -1.0f);
+        v3_from_points(vl, light->position, result.hitPos); 
         // Angular Attenuation
         // TODO cone lights
         float angularAttenuation = 1.0f;
-        if (light->theta > 0){
+        if(light->theta > 0){
             float cosalpha = v3_dot_product(v0, vl);
-            if (cosalpha < acosf(light->theta)) {
+            if(cosalpha < acos(light->theta)){
                 angularAttenuation = 0.0f;
-            } else {
+            }
+            else{
                 angularAttenuation = powf(cosalpha, light->angularA0);
             }
         }
         float x = v3_dot_product(n, L);
-        float diffuse[3] = {0};
-        float specular[3] = {0};
-        if (x > 0.0f) {
-            diffuse[0] = fmax(1.0f, result.hitObject->diffuse_color[0] * light->color[0]);
-            diffuse[1] = fmax(1.0f, result.hitObject->diffuse_color[1] * light->color[1]);
-            diffuse[2] = fmax(1.0f, result.hitObject->diffuse_color[2] * light->color[2]);
-            v3_scale(diffuse, x);
-        }
+        float diffuse[3];
+        float specular[3];
+        diffuse[0] = light->color[0] * result.hitObject->diffuse_color[0];
+        diffuse[1] = light->color[1] * result.hitObject->diffuse_color[1];
+        diffuse[2] = light->color[2] * result.hitObject->diffuse_color[2];
         //v3_scale(diffuse, radialAttenuation);
+        v3_scale(diffuse, x);
         float view[3];
         float reflection[3];
-        view[0] = L[0];
-        view[1] = L[1];
-        view[2] = L[2];
+        view[0] = ray.unitRay[0];
+        view[1] = ray.unitRay[1];
+        view[2] = ray.unitRay[2];
+        v3_scale(view, -1.0f);
         reflection[0] = n[0];
         reflection[1] = n[1];
         reflection[2] = n[2];
-        float nDotRin = v3_dot_product(n, view);
-        v3_scale(reflection, 2.0f * nDotRin);
-        v3_subtract(reflection, reflection, view);
-        float b = v3_dot_product(reflection, view);
-        if (x > 0 && b > 0) {
-            float y = powf(b, 20);
-            specular[0] = light->color[0] * result.hitObject->specular_color[0];
-            specular[1] = light->color[1] * result.hitObject->specular_color[1];
-            specular[2] = light->color[2] * result.hitObject->specular_color[2];
-            v3_scale(specular, y);
-        }
+        v3_scale(reflection, 2.0f * x);
+        v3_subtract(reflection, L, reflection);
+        float y = powf(v3_dot_product(reflection, view), 20);
+        specular[0] = light->color[0] * result.hitObject->specular_color[0];
+        specular[1] = light->color[1] * result.hitObject->specular_color[1];
+        specular[2] = light->color[2] * result.hitObject->specular_color[2];
+        v3_scale(specular, y);
         float I[3];
-        v3_add(I, diffuse, specular);
+        I[0] = diffuse[0] + specular[0];
+        I[1] = diffuse[1] + specular[1];
+        I[2] = diffuse[2] + specular[2];
         v3_scale(I, radialAttenuation * angularAttenuation);
-        I[0] = fmin(I[0], 255);
-        I[1] = fmin(I[1], 255);
-        I[2] = fmin(I[2], 255);
         //float x = -v3_dot_product(L, n);
-        v3_add(color, color, I);
+        color[0] += I[0];
+        color[1] += I[1];
+        color[2] += I[2];
     }
 
     // reflection
@@ -694,6 +690,14 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int refle
     outputColor[0] = color[0];
     outputColor[1] = color[1];
     outputColor[2] = color[2];
+}
+
+float clamp(float x){
+    if(x > 1){
+        return 1;
+    }
+    if (x<0) return 0;
+    return x;
 }
 
 Image *render(Scene scene, int imageWidth, int imageHeight) {
@@ -726,9 +730,9 @@ Image *render(Scene scene, int imageWidth, int imageHeight) {
             }
             // store color in image
             // convert 0.0 - 1.0 color to 0 - 255
-            addChannel(image, (int) fmin(255, floorf(color[0] * 255)));
-            addChannel(image, (int) fmin(255, floorf(color[1] * 255)));
-            addChannel(image, (int) fmin(255, floorf(color[2] * 255)));
+            addChannel(image, (int) (clamp(color[0]) * 255));
+            addChannel(image, (int) (clamp(color[1]) * 255));
+            addChannel(image, (int) (clamp(color[2]) * 255));
             addChannel(image, 255);
         }
     }
