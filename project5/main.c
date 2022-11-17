@@ -559,8 +559,12 @@ typedef struct {
 } RayResult;
 
 // shooter can be null
-RayResult shoot(Scene scene, Ray ray, Object *shooter) {
+RayResult shoot(Scene scene, Ray ray, Object *shooter, bool Object_flag) {
     RayResult result = {false, NULL, INFINITY, {0, 0, 0}};
+    if(Object_flag == true){
+        result.distance = v3_length(ray.unitRay);
+        v3_normalize(ray.unitRay, ray.unitRay);
+    }
     for (int m = 0; m < scene.objectCount; m++) {
         Object *obj = scene.objects[m];
         if (obj == NULL || obj == shooter) { continue; }
@@ -568,14 +572,27 @@ RayResult shoot(Scene scene, Ray ray, Object *shooter) {
         // call appropriate function to cast ray.
         float distance;
         float hit[3];
-        if (obj->flag == 0) {
-            distance = findSphereIntersection(ray, obj, hit);
-        } else if (obj->flag == 1) {
-            distance = findPlaneIntersection(ray, obj, hit);
-        } else if (obj->flag == 2) {
-            distance = findQuadricIntersection(ray, obj, hit);
-        } else {
-            continue;
+        if(Object_flag == 1){
+            if (obj->flag == 0 && !(v3_equals(obj->position, shooter->position, 0.01))) {
+                distance = findSphereIntersection(ray, obj, hit);
+            } else if (obj->flag == 1 && !(v3_equals(obj->position, shooter->position, 0.01))) {
+                distance = findPlaneIntersection(ray, obj, hit);
+            } else if (obj->flag == 2 && (obj->quadric->a != shooter->quadric->a || obj->quadric->b != shooter->quadric->b || obj->quadric->c != shooter->quadric->c || obj->quadric->d != shooter->quadric->d || obj->quadric->e != shooter->quadric->e || obj->quadric->f != shooter->quadric->f || obj->quadric->g != shooter->quadric->g || obj->quadric->h != shooter->quadric->h || obj->quadric->i != shooter->quadric->i || obj->quadric->j != shooter->quadric->j)) {
+                distance = findQuadricIntersection(ray, obj, hit);
+            } else {
+                continue;
+            }
+        }
+        else{
+            if (obj->flag == 0) {
+                distance = findSphereIntersection(ray, obj, hit);
+            } else if (obj->flag == 1) {
+                distance = findPlaneIntersection(ray, obj, hit);
+            } else if (obj->flag == 2) {
+                distance = findQuadricIntersection(ray, obj, hit);
+            } else {
+                continue;
+            }
         }
         if (distance > 0 && distance < result.distance) {
             result.valid = true;
@@ -607,85 +624,97 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int refle
         Light *light = scene.lights[i];
         //printf("Light radials: %f %f %f\n", light->radialA0, light->radialA1, light->radialA2);
         // Radial Attenuation
-        float L[3];
-        v3_subtract(L, light->position, result.hitPos);
-        //printf("Here\n");
-        //printf("L: %f, %f, %f\n", L[0], L[1], L[2]);
-        float d = v3_length(L);
-        float radialAttenuation = 1.0f / (light->radialA0 + light->radialA1 * d + light->radialA2 * d * d);
-        v3_normalize(L, L);
-        float v0[3], vl[3];
-        v0[0] = L[0];
-        v0[1] = L[1];
-        v0[2] = L[2];
-        v3_scale(v0, -1.0f);
-        v3_from_points(vl, light->position, result.hitPos); 
-        // Angular Attenuation
-        // TODO cone lights
-        float angularAttenuation = 1.0f;
-        if(light->theta > 0){
-            float cosalpha = v3_dot_product(v0, vl);
-            if(cosalpha < acos(light->theta)){
-                angularAttenuation = 0.0f;
-            }
-            else{
-                angularAttenuation = powf(cosalpha, light->angularA0);
-            }
+        float object_ray_pos[3], object_ray_dir[3];
+        object_ray_pos[0] = result.hitPos[0];
+        object_ray_pos[1] = result.hitPos[1];
+        object_ray_pos[2] = result.hitPos[2];
+        v3_from_points(object_ray_dir, object_ray_pos, light->position);
+        Ray object_ray = {.position = object_ray_pos, .unitRay = object_ray_dir};
+        RayResult object_ray_res = shoot(scene, object_ray, result.hitObject, true);
+        if(object_ray_res.valid == true){
+            continue;
         }
-        float x = v3_dot_product(n, L);
-        float diffuse[3];
-        float specular[3];
-        diffuse[0] = light->color[0] * result.hitObject->diffuse_color[0];
-        diffuse[1] = light->color[1] * result.hitObject->diffuse_color[1];
-        diffuse[2] = light->color[2] * result.hitObject->diffuse_color[2];
-        //v3_scale(diffuse, radialAttenuation);
-        v3_scale(diffuse, x);
-        float view[3];
-        float reflection[3];
-        view[0] = ray.unitRay[0];
-        view[1] = ray.unitRay[1];
-        view[2] = ray.unitRay[2];
-        v3_scale(view, -1.0f);
-        reflection[0] = n[0];
-        reflection[1] = n[1];
-        reflection[2] = n[2];
-        v3_scale(reflection, 2.0f * x);
-        v3_subtract(reflection, L, reflection);
-        float y = powf(v3_dot_product(reflection, view), 20);
-        specular[0] = light->color[0] * result.hitObject->specular_color[0];
-        specular[1] = light->color[1] * result.hitObject->specular_color[1];
-        specular[2] = light->color[2] * result.hitObject->specular_color[2];
-        v3_scale(specular, y);
-        float I[3];
-        I[0] = diffuse[0] + specular[0];
-        I[1] = diffuse[1] + specular[1];
-        I[2] = diffuse[2] + specular[2];
-        v3_scale(I, radialAttenuation * angularAttenuation);
-        //float x = -v3_dot_product(L, n);
-        color[0] += I[0];
-        color[1] += I[1];
-        color[2] += I[2];
-    }
-
-    // reflection
-    {
-        float view[3] = {-ray.unitRay[0], -ray.unitRay[1], -ray.unitRay[2]};
-        float reflection[3] = {n[0], n[1], n[2]};
-        float nDotRin = v3_dot_product(n, view);
-        v3_scale(reflection, 2.0f * nDotRin);
-        v3_subtract(reflection, reflection, view);
-
-        Ray reflectionRay = {.position = result.hitPos, .unitRay = reflection};
-        RayResult reflectionResult = shoot(scene, reflectionRay, result.hitObject);
-        if (reflectionResult.valid && reflectionCount < 6) {
-            float r = result.hitObject->reflectivity;
-            float reflectedObjectColor[3];
-            shade(scene, reflectionRay, reflectionResult, reflectedObjectColor, reflectionCount + 1);
-            v3_scale(color, (1.0f) - r);
-            v3_scale(reflectedObjectColor, r);
-            v3_add(color, color, reflectedObjectColor);
+        else{
+            float L[3];
+            v3_subtract(L, light->position, result.hitPos);
+            //printf("Here\n");
+            //printf("L: %f, %f, %f\n", L[0], L[1], L[2]);
+            float d = v3_length(L);
+            float radialAttenuation = 1.0f / (light->radialA0 + light->radialA1 * d + light->radialA2 * d * d);
+            v3_normalize(L, L);
+            float v0[3], vl[3];
+            v0[0] = L[0];
+            v0[1] = L[1];
+            v0[2] = L[2];
+            v3_scale(v0, -1.0f);
+            v3_from_points(vl, light->position, result.hitPos); 
+            // Angular Attenuation
+            // TODO cone lights
+            float angularAttenuation = 1.0f;
+            if(light->theta > 0){
+                float cosalpha = v3_dot_product(v0, vl);
+                if(cosalpha < acos(light->theta)){
+                    angularAttenuation = 0.0f;
+                }
+                else{
+                    angularAttenuation = powf(cosalpha, light->angularA0);
+                }
+            }
+            float x = v3_dot_product(n, L);
+            float diffuse[3];
+            float specular[3];
+            diffuse[0] = light->color[0] * result.hitObject->diffuse_color[0];
+            diffuse[1] = light->color[1] * result.hitObject->diffuse_color[1];
+            diffuse[2] = light->color[2] * result.hitObject->diffuse_color[2];
+            //v3_scale(diffuse, radialAttenuation);
+            v3_scale(diffuse, x);
+            float view[3];
+            float reflection[3];
+            view[0] = ray.unitRay[0];
+            view[1] = ray.unitRay[1];
+            view[2] = ray.unitRay[2];
+            v3_scale(view, -1.0f);
+            reflection[0] = n[0];
+            reflection[1] = n[1];
+            reflection[2] = n[2];
+            v3_scale(reflection, 2.0f * x);
+            v3_subtract(reflection, L, reflection);
+            float y = powf(v3_dot_product(reflection, view), 20);
+            specular[0] = light->color[0] * result.hitObject->specular_color[0];
+            specular[1] = light->color[1] * result.hitObject->specular_color[1];
+            specular[2] = light->color[2] * result.hitObject->specular_color[2];
+            v3_scale(specular, y);
+            float I[3];
+            I[0] = diffuse[0] + specular[0];
+            I[1] = diffuse[1] + specular[1];
+            I[2] = diffuse[2] + specular[2];
+            v3_scale(I, radialAttenuation * angularAttenuation);
+            //float x = -v3_dot_product(L, n);
+            color[0] += I[0];
+            color[1] += I[1];
+            color[2] += I[2];
         }
     }
+
+     // reflection
+        {
+            float view[3] = {-ray.unitRay[0], -ray.unitRay[1], -ray.unitRay[2]};
+            float reflection[3] = {n[0], n[1], n[2]};
+            float nDotRin = v3_dot_product(n, view);
+            v3_scale(reflection, 2.0f * nDotRin);
+            v3_subtract(reflection, reflection, view);
+
+            Ray reflectionRay = {.position = result.hitPos, .unitRay = reflection};
+            RayResult reflectionResult = shoot(scene, reflectionRay, result.hitObject, false);
+            if (reflectionResult.valid && reflectionCount < 6) {
+                float r = result.hitObject->reflectivity;
+                float reflectedObjectColor[3];
+                shade(scene, reflectionRay, reflectionResult, reflectedObjectColor, reflectionCount + 1);
+                v3_scale(color, (1.0f) - r);
+                v3_scale(reflectedObjectColor, r);
+                v3_add(color, color, reflectedObjectColor);
+            }
+        }   
 
     outputColor[0] = color[0];
     outputColor[1] = color[1];
@@ -721,7 +750,7 @@ Image *render(Scene scene, int imageWidth, int imageHeight) {
             v3_normalize(unitRay, p);
             Ray ray = {.position = p, .unitRay = unitRay};
             // cast ray
-            RayResult result = shoot(scene, ray, NULL);
+            RayResult result = shoot(scene, ray, NULL, false);
             // start with black
             float *color = (float[3]) {0.0f, 0.0f, 0.0f};
             // only set the color if we hit a valid object
