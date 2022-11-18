@@ -703,14 +703,14 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int refle
         float b[3];
         v3_cross_product(b, a, n);
 
-        float p = result.hitObject->ior;
+        float p = 1.0f / result.hitObject->ior;
         float sinPhi = p * v3_dot_product(ray.unitRay, b);
         float cosPhi = sqrtf(1 - powf(sinPhi, 2));
 
         // create ut
         float ut[3] = {n[0], n[1], n[2]};
         v3_scale(ut, -cosPhi);
-        float otherPart[3] = {b[0], b[1], b[2]};
+        float otherPart[3] = {-b[0], -b[1], -b[2]};
         v3_scale(otherPart, sinPhi);
         v3_add(ut, ut, otherPart);
         v3_normalize(ut, ut);
