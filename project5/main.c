@@ -14,7 +14,7 @@
 #include "ppm.h"
 
 typedef struct{
-    int radius;
+    float radius;
 } sphere;
 
 typedef struct{
@@ -606,8 +606,9 @@ RayResult shoot(Scene scene, Ray ray, Object *shooter, bool Object_flag) {
     return result;
 }
 
+const int MAX_REFLECTION_COUNT = 6;
+
 void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int reflectionCount) {
- //float *color = result.hitObject->diffuse_color;
     float color[3] ={0.0f, 0.0f, 0.0f};
     float n[3]; // surface normal
     if (result.hitObject->flag == 1) {
@@ -649,7 +650,6 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int refle
             v3_scale(v0, -1.0f);
             v3_from_points(vl, light->position, result.hitPos); 
             // Angular Attenuation
-            // TODO cone lights
             float angularAttenuation = 1.0f;
             if(light->theta > 0){
                 float cosalpha = v3_dot_product(v0, vl);
@@ -696,6 +696,38 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int refle
         }
     }
 
+    { // refraction
+        float a[3];
+        v3_cross_product(a, n, ray.unitRay);
+        v3_normalize(a, a);
+        float b[3];
+        v3_cross_product(b, a, n);
+
+        float p = result.hitObject->ior;
+        float sinPhi = p * v3_dot_product(ray.unitRay, b);
+        float cosPhi = sqrtf(1 - powf(sinPhi, 2));
+
+        // create ut
+        float ut[3] = {n[0], n[1], n[2]};
+        v3_scale(ut, -cosPhi);
+        float otherPart[3] = {b[0], b[1], b[2]};
+        v3_scale(otherPart, sinPhi);
+        v3_add(ut, ut, otherPart);
+        v3_normalize(ut, ut);
+
+        // shoot ray using ut
+        Ray refractionRay = {.position = result.hitPos, .unitRay = ut};
+        RayResult refractionResult = shoot(scene, refractionRay, result.hitObject, false);
+        float refractedColor[3] = {0.0f, 0.0f, 0.0f};
+        if (refractionResult.valid && reflectionCount < MAX_REFLECTION_COUNT) {
+            shade(scene, refractionRay, refractionResult, refractedColor, reflectionCount + 1);
+        }
+        float r = result.hitObject->refractivity;
+        v3_scale(color, (1.0f) - r);
+        v3_scale(refractedColor, r);
+        v3_add(color, color, refractedColor);
+    }
+
      // reflection
         {
             float view[3] = {-ray.unitRay[0], -ray.unitRay[1], -ray.unitRay[2]};
@@ -706,7 +738,7 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int refle
 
             Ray reflectionRay = {.position = result.hitPos, .unitRay = reflection};
             RayResult reflectionResult = shoot(scene, reflectionRay, result.hitObject, false);
-            if (reflectionResult.valid && reflectionCount < 6) {
+            if (reflectionResult.valid && reflectionCount < MAX_REFLECTION_COUNT) {
                 float r = result.hitObject->reflectivity;
                 float reflectedObjectColor[3];
                 shade(scene, reflectionRay, reflectionResult, reflectedObjectColor, reflectionCount + 1);
@@ -714,7 +746,7 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int refle
                 v3_scale(reflectedObjectColor, r);
                 v3_add(color, color, reflectedObjectColor);
             }
-        }   
+        }
 
     outputColor[0] = color[0];
     outputColor[1] = color[1];
