@@ -19,7 +19,8 @@ Image *newImage(int width, int height, int maxVal) {
     image->depth = 4;
     // this will always have space for the alpha channel
     image->data = malloc(sizeof(uint8_t) * image->width * image->height * 4);
-    image->length = 0;
+    image->length = -1;
+    image->count = 1;
     return image;
 }
 
@@ -29,7 +30,16 @@ void freeImage(Image *image) {
 }
 
 void addChannel(Image *image, int value) {
+    if(image->length == -1){
+        image->length = (image->height * image->width * 4) - (image->width * 4 * image->count);
+    }
+    //printf("%d ", image->length);
     image->data[image->length++] = value;
+    if(image->length%(4*image->width) == 0 && image->count <= image->height){
+        image->count++;
+        image->length = (image->height * image->width * 4) - (image->width * 4 * image->count);
+        //printf("\n");
+    }
 }
 
 int getImageFormat(char *fileName) {
@@ -91,7 +101,7 @@ bool writeP3(Image *image, const char *fileName) {
     fprintf(file, "%d\n", image->maxVal);
     int lineLength = 0;
     int channelCount = 0;
-    for (int i = 0; i < image->length; i++) {
+    for (int i = 0; i < 4*image->height*image->width; i++) {
         channelCount++;
         if (channelCount == 4) {
             // ignore alpha channel
