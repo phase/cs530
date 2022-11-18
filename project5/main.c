@@ -697,10 +697,10 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int refle
     }
 
     { // refraction
-        float a[3];
+        float a[3] = {0.0f, 0.0f, 0.0f};
         v3_cross_product(a, n, ray.unitRay);
         v3_normalize(a, a);
-        float b[3];
+        float b[3] = {0.0f, 0.0f, 0.0f};
         v3_cross_product(b, a, n);
 
         float p = 1.0f / result.hitObject->ior;
