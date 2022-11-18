@@ -712,8 +712,9 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int refle
         v3_scale(ut, -cosPhi);
         float otherPart[3] = {-b[0], -b[1], -b[2]};
         v3_scale(otherPart, sinPhi);
-        v3_add(ut, ut, otherPart);
-        v3_normalize(ut, ut);
+        // looks like this isn't needed?
+        //v3_add(ut, ut, otherPart);
+        //v3_normalize(ut, ut);
 
         // shoot ray using ut
         Ray refractionRay = {.position = result.hitPos, .unitRay = ut};
