@@ -606,7 +606,7 @@ RayResult shoot(Scene scene, Ray ray, Object *shooter, bool Object_flag) {
     return result;
 }
 
-const int MAX_REFLECTION_COUNT = 6;
+const int MAX_REFLECTION_COUNT = 4;
 
 void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int reflectionCount) {
     float color[3] ={0.0f, 0.0f, 0.0f};
@@ -661,13 +661,15 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int refle
                 }
             }
             float x = v3_dot_product(n, L);
-            float diffuse[3];
-            float specular[3];
-            diffuse[0] = light->color[0] * result.hitObject->diffuse_color[0];
-            diffuse[1] = light->color[1] * result.hitObject->diffuse_color[1];
-            diffuse[2] = light->color[2] * result.hitObject->diffuse_color[2];
-            //v3_scale(diffuse, radialAttenuation);
-            v3_scale(diffuse, x);
+            float diffuse[3] = {0.0f, 0.0f, 0.0f};
+            float specular[3] = {0.0f, 0.0f, 0.0f};
+            if(x > 0.0f){
+                diffuse[0] = light->color[0] * result.hitObject->diffuse_color[0];
+                diffuse[1] = light->color[1] * result.hitObject->diffuse_color[1];
+                diffuse[2] = light->color[2] * result.hitObject->diffuse_color[2];
+                //v3_scale(diffuse, radialAttenuation);
+                v3_scale(diffuse, x);
+            }
             float view[3];
             float reflection[3];
             view[0] = ray.unitRay[0];
@@ -680,10 +682,12 @@ void shade(Scene scene, Ray ray, RayResult result, float *outputColor, int refle
             v3_scale(reflection, 2.0f * x);
             v3_subtract(reflection, L, reflection);
             float y = powf(v3_dot_product(reflection, view), 20);
-            specular[0] = light->color[0] * result.hitObject->specular_color[0];
-            specular[1] = light->color[1] * result.hitObject->specular_color[1];
-            specular[2] = light->color[2] * result.hitObject->specular_color[2];
-            v3_scale(specular, y);
+            if(y > 0.0f && x > 0.0f){
+                specular[0] = light->color[0] * result.hitObject->specular_color[0];
+                specular[1] = light->color[1] * result.hitObject->specular_color[1];
+                specular[2] = light->color[2] * result.hitObject->specular_color[2];
+                v3_scale(specular, y);
+            }
             float I[3];
             I[0] = diffuse[0] + specular[0];
             I[1] = diffuse[1] + specular[1];
