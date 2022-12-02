@@ -219,7 +219,7 @@ function start(image) {
             gl.getUniformLocation(shader_program, "sheer"), false, ([1, shrx, 0, 0, shry, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
         );
 
-        timer = Math.min(1.0, timer + 0.1);
+        timer = Math.min(1.0, timer + 0.01);
 
         // 11. Render
 
