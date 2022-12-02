@@ -1,6 +1,6 @@
 # CS 530 - Project 5
 
-Raytracer
+Raytracer with reflection and refraction.
 
 ## Authors
 
