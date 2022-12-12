@@ -1,0 +1,11 @@
+camera, width: 2.0, height: 2.0
+sphere, radius: 2.0, diffuse_color: [0.5, 0.5, 0.5], specular_color: [1, 1, 1], position: [-3, 1, -5], reflectivity: 0.55
+sphere, radius: 2.0, diffuse_color: [0.5, 0.5, 0.5], specular_color: [1, 1, 1], position: [0, 1, -12], reflectivity: 0.15
+sphere, radius: 1.0, diffuse_color: [0.7, 0.7, 0.7], specular_color: [1, 1, 1], position: [3, 7, -12], reflectivity: 0.55
+sphere, radius: 1.0, diffuse_color: [0.7, 0.7, 0.7], specular_color: [1, 1, 1], position: [-2, 6, -10], reflectivity: 0.0
+sphere, radius: 1.0, diffuse_color: [0.2, 0.2, 0.2], specular_color: [1, 1, 1], position: [5, 8, -9], reflectivity: 0.55
+sphere, radius: 0.5, diffuse_color: [0.9, 0.9, 0.9], specular_color: [1, 1, 1], position: [-5, 7, -9], reflectivity: 0.2
+sphere, radius: 2.0, diffuse_color: [0.5, 0.5, 0.5], specular_color: [1, 1, 1], position: [3, 1, -7], reflectivity: 0.15
+sphere, radius: 0.5, diffuse_color: [0, 0, 0], specular_color: [1, 1, 1], position: [2, -0.4, -3], refractivity: 0.8, reflectivity: 0.0, ior: 2.0
+plane, normal: [0, 1, 0], diffuse_color: [0.3, 0.6, 0.3], position: [0, -1, 0], reflectivity: 0.0
+light, color: [4, 4, 4], radial-a2: 0.01, radial-a1: 0.0125, radial-a0: 0.0125, position: [10, 10, -5]
