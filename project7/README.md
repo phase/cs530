@@ -1,6 +1,8 @@
-# CS 530 - Project 5
+# CS 530 - Project 7
 
-Raytracer with reflection and refraction.
+**Anaglyph Raytracer**
+
+This raytracer splits images into red & blue channels, combining them in a such a way that red-blue 3D glasses can be used to see depth.
 
 ## Authors
 
